@@ -9,6 +9,9 @@ services:
     build: ./backend
     restart: always
     env_file: .env
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     # DATABASE_URL points to Aurora RDS — set in .env
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
