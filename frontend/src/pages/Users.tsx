@@ -128,7 +128,7 @@ export default function Users() {
   });
 
   const copySubUrl = (token: string, id: string) => {
-    const url = `${window.location.origin}/sub/${token}`;
+    const url = `http://${window.location.hostname}:8080/sub/${token}`;
     navigator.clipboard.writeText(url);
     setCopied(id);
     setTimeout(() => setCopied(null), 2000);
