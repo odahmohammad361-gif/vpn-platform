@@ -91,7 +91,7 @@ function AssignModal({ user, servers, onClose }: { user: any; servers: any[]; on
 export default function Users() {
   const qc = useQueryClient();
   const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState({ username: "", email: "", quota_bytes: 0 });
+  const [form, setForm] = useState({ username: "", email: "", quota_gb: 0 });
   const [copied, setCopied] = useState<string | null>(null);
   const [assigningUser, setAssigningUser] = useState<any>(null);
 
@@ -107,8 +107,8 @@ export default function Users() {
   });
 
   const createUser = useMutation({
-    mutationFn: (data: any) => api.post("/users", data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["users"] }); setCreating(false); setForm({ username: "", email: "", quota_bytes: 0 }); },
+    mutationFn: ({ quota_gb, ...rest }: any) => api.post("/users", { ...rest, quota_bytes: Math.round(quota_gb * 1e9) }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["users"] }); setCreating(false); setForm({ username: "", email: "", quota_gb: 0 }); },
   });
 
   const toggleUser = useMutation({
@@ -161,8 +161,8 @@ export default function Users() {
               onChange={(e) => setForm({ ...form, username: e.target.value })} />
             <input className={inputClass} placeholder="Email (optional)" value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })} />
-            <input type="number" className={inputClass} placeholder="Quota bytes (0 = unlimited)"
-              value={form.quota_bytes} onChange={(e) => setForm({ ...form, quota_bytes: Number(e.target.value) })} />
+            <input type="number" className={inputClass} placeholder="Quota GB (0 = unlimited)" min="0" step="1"
+              value={form.quota_gb} onChange={(e) => setForm({ ...form, quota_gb: Number(e.target.value) })} />
           </div>
           <div className="flex gap-2">
             <button onClick={() => createUser.mutate(form)}
