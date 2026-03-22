@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { UserPlus, Trash2, Ban, CheckCircle, RefreshCw, Copy, Check } from "lucide-react";
+import { UserPlus, Trash2, Ban, CheckCircle, RefreshCw, Copy, Check, ServerIcon, X } from "lucide-react";
 import api from "@/lib/api";
 
 function formatBytes(b: number) {
@@ -24,16 +24,86 @@ function QuotaBar({ used, quota }: { used: number; quota: number }) {
   );
 }
 
+function AssignModal({ user, servers, onClose }: { user: any; servers: any[]; onClose: () => void }) {
+  const qc = useQueryClient();
+
+  const assign = useMutation({
+    mutationFn: (serverId: string) => api.post(`/users/${user.id}/servers/${serverId}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["users"] }),
+  });
+
+  const remove = useMutation({
+    mutationFn: (serverId: string) => api.delete(`/users/${user.id}/servers/${serverId}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["users"] }),
+  });
+
+  const { data: userServers = [] } = useQuery({
+    queryKey: ["user-servers", user.id],
+    queryFn: () => api.get(`/users/${user.id}/servers`).then((r) => r.data),
+  });
+
+  const assignedIds = new Set(userServers.map((us: any) => us.server_id));
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="glass rounded-2xl p-6 w-full max-w-md mx-4">
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h2 className="text-white font-semibold">Assign Servers</h2>
+            <p className="text-gray-500 text-sm mt-0.5">{user.username}</p>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-xl hover:bg-white/10 text-gray-500 transition">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="space-y-2">
+          {servers.map((s: any) => {
+            const assigned = assignedIds.has(s.id);
+            return (
+              <div key={s.id} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10">
+                <div>
+                  <p className="text-white text-sm font-medium">{s.name}</p>
+                  <p className="text-gray-500 text-xs font-mono">{s.host}</p>
+                </div>
+                <button
+                  onClick={() => assigned ? remove.mutate(s.id) : assign.mutate(s.id)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+                    assigned
+                      ? "bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20"
+                      : "bg-green-500/10 text-green-400 border border-green-500/20 hover:bg-green-500/20"
+                  }`}
+                >
+                  {assigned ? "Remove" : "Assign"}
+                </button>
+              </div>
+            );
+          })}
+          {servers.length === 0 && (
+            <p className="text-gray-600 text-sm text-center py-4">No servers configured yet</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Users() {
   const qc = useQueryClient();
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({ username: "", email: "", quota_bytes: 0 });
   const [copied, setCopied] = useState<string | null>(null);
+  const [assigningUser, setAssigningUser] = useState<any>(null);
 
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["users"],
     queryFn: () => api.get("/users").then((r) => r.data),
     refetchInterval: 15000,
+  });
+
+  const { data: servers = [] } = useQuery({
+    queryKey: ["servers"],
+    queryFn: () => api.get("/servers").then((r) => r.data),
   });
 
   const createUser = useMutation({
@@ -68,21 +138,21 @@ export default function Users() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {assigningUser && (
+        <AssignModal user={assigningUser} servers={servers} onClose={() => setAssigningUser(null)} />
+      )}
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Users</h1>
           <p className="text-gray-500 text-sm mt-1">{users.length} total users</p>
         </div>
-        <button
-          onClick={() => setCreating(true)}
-          className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-medium transition-all duration-200"
-        >
+        <button onClick={() => setCreating(true)}
+          className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-medium transition-all duration-200">
           <UserPlus className="w-4 h-4" /> Add User
         </button>
       </div>
 
-      {/* Create form */}
       {creating && (
         <div className="glass rounded-2xl p-6 space-y-4">
           <h2 className="text-white font-semibold">New User</h2>
@@ -107,7 +177,6 @@ export default function Users() {
         </div>
       )}
 
-      {/* Table */}
       <div className="glass rounded-2xl overflow-hidden">
         <table className="w-full text-sm">
           <thead>
@@ -127,7 +196,7 @@ export default function Users() {
               <tr><td colSpan={5} className="text-center text-gray-600 py-12">No users yet — add one above</td></tr>
             )}
             {users.map((u: any) => (
-              <tr key={u.id} className="hover:bg-white/3 transition-colors group">
+              <tr key={u.id} className="hover:bg-white/3 transition-colors">
                 <td className="px-5 py-4">
                   <p className="text-white font-mono font-medium">{u.username}</p>
                   {u.email && <p className="text-gray-600 text-xs mt-0.5">{u.email}</p>}
@@ -149,6 +218,10 @@ export default function Users() {
                 </td>
                 <td className="px-5 py-4">
                   <div className="flex gap-1.5 justify-end">
+                    <button title="Assign servers" onClick={() => setAssigningUser(u)}
+                      className="p-2 rounded-lg bg-white/5 hover:bg-purple-500/20 hover:text-purple-400 text-gray-500 transition">
+                      <ServerIcon className="w-3.5 h-3.5" />
+                    </button>
                     <button title="Copy subscription URL" onClick={() => copySubUrl(u.subscription_token, u.id)}
                       className="p-2 rounded-lg bg-white/5 hover:bg-blue-500/20 hover:text-blue-400 text-gray-500 transition">
                       {copied === u.id ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}

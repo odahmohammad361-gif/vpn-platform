@@ -148,6 +148,12 @@ async def assign_server(user_id: uuid.UUID, server_id: uuid.UUID, db: AsyncSessi
     return slot
 
 
+@router.get("/{user_id}/servers")
+async def list_user_servers(user_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(UserServer).where(UserServer.user_id == user_id))
+    return result.scalars().all()
+
+
 @router.delete("/{user_id}/servers/{server_id}", status_code=204)
 async def remove_server(user_id: uuid.UUID, server_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
