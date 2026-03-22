@@ -177,7 +177,7 @@ api_get() {
 
 api_post() {
     local path="$1"
-    local body="${2:-{}}"
+    local body="${2:-}"
     read -r ts sig <<< "$(sign_request "$body")"
     curl -sfk -X POST "${API_BASE}${path}" \
         -H "Content-Type: application/json" \
