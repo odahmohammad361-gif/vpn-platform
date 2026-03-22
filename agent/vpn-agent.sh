@@ -4,9 +4,9 @@
 #  Syncs users with admin API + reports traffic
 # ================================================
 
-API_BASE="https://52.77.235.166:8443/api/agent"
-SERVER_ID="058cca14-19cf-4874-b1b6-8d6c6a1dd878"
-AGENT_SECRET="789c49705d50218b17cd6883b678cb893ef2be6018ab0149bafcb6b7a6b9ed38"
+API_BASE="REPLACE_WITH_API_BASE/api/agent"
+SERVER_ID="REPLACE_WITH_SERVER_UUID"
+AGENT_SECRET="REPLACE_WITH_AGENT_SECRET"
 MANAGER_SOCK="/var/run/shadowsocks-manager.sock"
 SS_CONFIG="/etc/shadowsocks/config.json"
 CYCLE_SECONDS=30

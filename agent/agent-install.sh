@@ -26,7 +26,7 @@ chmod +x /usr/local/bin/vpn-agent.sh
 # Inject config
 sed -i "s|REPLACE_WITH_SERVER_UUID|${SERVER_ID}|g" /usr/local/bin/vpn-agent.sh
 sed -i "s|REPLACE_WITH_AGENT_SECRET|${AGENT_SECRET}|g" /usr/local/bin/vpn-agent.sh
-sed -i "s|https://YOUR_ADMIN_DOMAIN|${API_BASE}|g" /usr/local/bin/vpn-agent.sh
+sed -i "s|REPLACE_WITH_API_BASE|${API_BASE}|g" /usr/local/bin/vpn-agent.sh
 
 # Create systemd service
 cat > /etc/systemd/system/vpn-agent.service << EOF
