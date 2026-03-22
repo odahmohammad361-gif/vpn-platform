@@ -34,6 +34,7 @@ SS_METHOD="chacha20-ietf-poly1305"
 SS_VERSION="1.21.2"
 SS_DIR="/etc/shadowsocks"
 SS_BIN="/usr/local/bin/ssserver"
+SS_MGR="/usr/local/bin/ssmanager"
 SS_LOG="/var/log/shadowsocks.log"
 MANAGER_SOCK="/var/run/shadowsocks-manager.sock"
 
@@ -67,9 +68,10 @@ SS_URL="https://github.com/shadowsocks/shadowsocks-rust/releases/download/v${SS_
 wget -q --show-progress "$SS_URL" -O /tmp/ss.tar.xz
 tar -xf /tmp/ss.tar.xz -C /tmp/
 cp /tmp/ssserver "$SS_BIN"
-chmod +x "$SS_BIN"
+cp /tmp/ssmanager "$SS_MGR"
+chmod +x "$SS_BIN" "$SS_MGR"
 rm -f /tmp/ss.tar.xz /tmp/ssserver /tmp/sslocal /tmp/ssurl /tmp/ssmanager 2>/dev/null || true
-echo -e "${GREEN}      Installed: $SS_BIN${NC}"
+echo -e "${GREEN}      Installed: $SS_BIN + $SS_MGR${NC}"
 
 # ── STEP 3 — shadowsocks config (manager mode) ───
 echo -e "${YELLOW}[3/7] Writing shadowsocks config...${NC}"
@@ -78,14 +80,10 @@ mkdir -p "$SS_DIR"
 cat > "$SS_DIR/config.json" << EOF
 {
     "server": "0.0.0.0",
-    "server_port": $SS_PORT,
-    "password": "placeholder",
     "method": "$SS_METHOD",
     "timeout": 300,
-    "mode": "tcp_only",
-    "fast_open": true,
-    "ipv6_first": false,
-    "dns": "8.8.8.8"
+    "mode": "tcp_and_udp",
+    "fast_open": true
 }
 EOF
 echo -e "${GREEN}      Done${NC}"
@@ -126,13 +124,13 @@ touch "$SS_LOG"
 
 cat > /etc/systemd/system/shadowsocks.service << EOF
 [Unit]
-Description=Shadowsocks-Rust Server
+Description=Shadowsocks-Rust Manager
 After=network.target
 StartLimitIntervalSec=0
 
 [Service]
 Type=simple
-ExecStart=$SS_BIN -c $SS_DIR/config.json --manager-address $MANAGER_SOCK
+ExecStart=$SS_MGR -c $SS_DIR/config.json --manager-address $MANAGER_SOCK
 Restart=always
 RestartSec=3
 LimitNOFILE=65536
