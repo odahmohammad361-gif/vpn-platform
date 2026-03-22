@@ -120,6 +120,7 @@ export default function Users() {
   const deleteUser = useMutation({
     mutationFn: (id: string) => api.delete(`/users/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["users"] }),
+    onError: () => alert("Failed to delete user. Please try again."),
   });
 
   const resetQuota = useMutation({

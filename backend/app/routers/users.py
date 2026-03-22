@@ -3,13 +3,14 @@ import secrets
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, text
+from sqlalchemy import select, text, delete
 from pydantic import BaseModel, field_validator, model_validator
 from typing import Optional
 from app.database import get_db
 from app.dependencies import get_current_admin
 from app.models.user import User, UserServer
 from app.models.server import Server
+from app.models.traffic import DailyTraffic
 from app.config import settings
 
 router = APIRouter(prefix="/users", tags=["users"], dependencies=[Depends(get_current_admin)])
@@ -82,6 +83,7 @@ async def delete_user(user_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     user = await db.get(User, user_id)
     if not user:
         raise HTTPException(404, "User not found")
+    await db.execute(delete(DailyTraffic).where(DailyTraffic.user_id == user_id))
     await db.delete(user)
     await db.commit()
 
