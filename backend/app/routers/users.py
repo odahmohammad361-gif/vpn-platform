@@ -164,10 +164,14 @@ async def remove_server(user_id: uuid.UUID, server_id: uuid.UUID, db: AsyncSessi
 
 
 @router.get("/{user_id}/subscription")
-async def get_subscription_urls(user_id: uuid.UUID, request_base_url: str = "https://yourdomain.com"):
-    token_placeholder = "USER_TOKEN"
+async def get_subscription_urls(user_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+    user = await db.get(User, user_id)
+    if not user:
+        raise HTTPException(404, "User not found")
+    base = "https://52.77.235.166:8443"
+    token = user.subscription_token
     return {
-        "shadowrocket": f"{request_base_url}/sub/{token_placeholder}",
-        "clash": f"{request_base_url}/sub/{token_placeholder}?format=clash",
-        "v2rayng": f"{request_base_url}/sub/{token_placeholder}?format=v2rayng",
+        "shadowrocket": f"{base}/sub/{token}",
+        "clash": f"{base}/sub/{token}?format=clash",
+        "v2rayng": f"{base}/sub/{token}?format=v2rayng",
     }
