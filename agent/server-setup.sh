@@ -111,11 +111,13 @@ echo -e "${GREEN}      BBR: $(sysctl -n net.ipv4.tcp_congestion_control)${NC}"
 
 # ── STEP 5 — UFW firewall ─────────────────────────
 echo -e "${YELLOW}[5/7] Configuring firewall...${NC}"
-ufw allow ssh    > /dev/null 2>&1
-ufw allow 80/tcp > /dev/null 2>&1
+ufw allow ssh           > /dev/null 2>&1
+ufw allow 80/tcp        > /dev/null 2>&1
 ufw allow "$SS_PORT"/tcp > /dev/null 2>&1
-echo "y" | ufw enable > /dev/null 2>&1
-echo -e "${GREEN}      Port $SS_PORT/TCP open${NC}"
+ufw allow 20000:29999/tcp > /dev/null 2>&1
+ufw allow 20000:29999/udp > /dev/null 2>&1
+echo "y" | ufw enable  > /dev/null 2>&1
+echo -e "${GREEN}      Ports $SS_PORT, 20000-29999 open${NC}"
 
 # ── STEP 6 — shadowsocks systemd (manager socket) ─
 echo -e "${YELLOW}[6/7] Creating shadowsocks service (manager mode)...${NC}"
@@ -152,8 +154,8 @@ echo -e "${GREEN}      Shadowsocks: $SS_STATUS${NC}"
 # ── STEP 7 — Install VPN agent ────────────────────
 echo -e "${YELLOW}[7/7] Installing VPN agent...${NC}"
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cp "$SCRIPT_DIR/vpn-agent.sh" /usr/local/bin/vpn-agent.sh
+curl -sfk "https://raw.githubusercontent.com/odahmohammad361-gif/vpn-platform/main/agent/vpn-agent.sh" \
+    -o /usr/local/bin/vpn-agent.sh
 chmod +x /usr/local/bin/vpn-agent.sh
 
 sed -i "s|REPLACE_WITH_SERVER_UUID|${SERVER_ID}|g" /usr/local/bin/vpn-agent.sh
