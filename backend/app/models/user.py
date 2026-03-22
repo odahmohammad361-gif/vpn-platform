@@ -3,6 +3,9 @@ from datetime import datetime
 from sqlalchemy import String, Boolean, BigInteger, Text, DateTime, Integer, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from app.models.plan import Plan
 
 
 class User(Base):
@@ -18,6 +21,9 @@ class User(Base):
     bytes_used: Mapped[int] = mapped_column(BigInteger, default=0)
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     notes: Mapped[str | None] = mapped_column(Text)
+    plan_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("plans.id", ondelete="SET NULL"), nullable=True)
+    plan_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    next_reset_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
 

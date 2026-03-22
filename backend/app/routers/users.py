@@ -1,6 +1,7 @@
 import uuid
 import secrets
-from datetime import datetime
+import calendar
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, text, delete
@@ -11,7 +12,15 @@ from app.dependencies import get_current_admin
 from app.models.user import User, UserServer
 from app.models.server import Server
 from app.models.traffic import DailyTraffic
+from app.models.plan import Plan
 from app.config import settings
+
+
+def _add_months(dt: datetime, months: int) -> datetime:
+    month = (dt.month - 1 + months) % 12 + 1
+    year = dt.year + (dt.month - 1 + months) // 12
+    day = min(dt.day, calendar.monthrange(year, month)[1])
+    return dt.replace(year=year, month=month, day=day)
 
 router = APIRouter(prefix="/users", tags=["users"], dependencies=[Depends(get_current_admin)])
 
@@ -184,3 +193,38 @@ async def get_subscription_urls(user_id: uuid.UUID, db: AsyncSession = Depends(g
         "clash": f"{base}/sub/{token}?format=clash",
         "v2rayng": f"{base}/sub/{token}?format=v2rayng",
     }
+
+
+@router.post("/{user_id}/assign-plan")
+async def assign_plan(user_id: uuid.UUID, plan_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+    user = await db.get(User, user_id)
+    if not user:
+        raise HTTPException(404, "User not found")
+    plan = await db.get(Plan, plan_id)
+    if not plan:
+        raise HTTPException(404, "Plan not found")
+
+    now = datetime.now(timezone.utc)
+    user.plan_id = plan.id
+    user.plan_started_at = now
+    user.quota_bytes = plan.monthly_quota_bytes
+    user.bytes_used = 0
+    user.expires_at = _add_months(now, plan.duration_months)
+    user.next_reset_at = _add_months(now, 1)
+    user.is_active = True
+    user.disabled_reason = None
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+
+@router.post("/{user_id}/remove-plan")
+async def remove_plan(user_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+    user = await db.get(User, user_id)
+    if not user:
+        raise HTTPException(404, "User not found")
+    user.plan_id = None
+    user.plan_started_at = None
+    user.next_reset_at = None
+    await db.commit()
+    return {"status": "plan removed"}

@@ -1,6 +1,7 @@
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert
+import calendar
 from datetime import datetime, date, timezone
 from app.database import SessionLocal
 from app.models.user import User
@@ -74,6 +75,37 @@ async def process_traffic():
         await db.commit()
 
 
+def _add_one_month(dt: datetime) -> datetime:
+    month = dt.month % 12 + 1
+    year = dt.year + (dt.month // 12)
+    day = min(dt.day, calendar.monthrange(year, month)[1])
+    return dt.replace(year=year, month=month, day=day)
+
+
+async def reset_monthly_quotas():
+    """Reset bytes_used for plan users whose monthly period has rolled over."""
+    now = datetime.now(timezone.utc)
+    async with SessionLocal() as db:
+        result = await db.execute(
+            select(User).where(
+                User.plan_id.is_not(None),
+                User.next_reset_at.is_not(None),
+                User.next_reset_at <= now,
+                User.expires_at > now,
+            )
+        )
+        users = result.scalars().all()
+        for user in users:
+            user.bytes_used = 0
+            if user.disabled_reason == "quota_exceeded":
+                user.is_active = True
+                user.disabled_reason = None
+            user.next_reset_at = _add_one_month(user.next_reset_at)
+        if users:
+            await db.commit()
+
+
 def start_scheduler():
     scheduler.add_job(process_traffic, "interval", seconds=60, id="process_traffic")
+    scheduler.add_job(reset_monthly_quotas, "interval", minutes=10, id="reset_monthly_quotas")
     scheduler.start()

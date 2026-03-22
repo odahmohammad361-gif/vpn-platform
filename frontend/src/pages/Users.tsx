@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { UserPlus, Trash2, Ban, CheckCircle, RefreshCw, Copy, Check, ServerIcon, X } from "lucide-react";
+import { UserPlus, Trash2, Ban, CheckCircle, RefreshCw, Copy, Check, ServerIcon, X, Package } from "lucide-react";
 import api from "@/lib/api";
 
 function formatBytes(b: number) {
@@ -20,6 +20,79 @@ function QuotaBar({ used, quota }: { used: number; quota: number }) {
         <div className={`h-full rounded-full ${color} transition-all`} style={{ width: `${pct}%` }} />
       </div>
       <p className="text-gray-500 text-xs">{formatBytes(used)} / {formatBytes(quota)}</p>
+    </div>
+  );
+}
+
+function PlanModal({ user, onClose }: { user: any; onClose: () => void }) {
+  const qc = useQueryClient();
+  const { data: plans = [] } = useQuery({
+    queryKey: ["plans"],
+    queryFn: () => api.get("/plans").then((r) => r.data),
+  });
+
+  const assign = useMutation({
+    mutationFn: (planId: string) =>
+      api.post(`/users/${user.id}/assign-plan?plan_id=${planId}`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["users"] }); onClose(); },
+    onError: () => alert("Failed to assign plan."),
+  });
+
+  const remove = useMutation({
+    mutationFn: () => api.post(`/users/${user.id}/remove-plan`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["users"] }); onClose(); },
+  });
+
+  function fmtBytes(b: number) {
+    if (b >= 1e9) return `${(b / 1e9).toFixed(0)} GB`;
+    return `${b} B`;
+  }
+
+  const durationLabel: Record<number, string> = { 1: "1 month", 3: "3 months", 6: "6 months", 12: "12 months" };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="glass rounded-2xl p-6 w-full max-w-md mx-4">
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h2 className="text-white font-semibold">Assign Plan</h2>
+            <p className="text-gray-500 text-sm mt-0.5">{user.username}</p>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-xl hover:bg-white/10 text-gray-500 transition">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="space-y-2">
+          {plans.map((p: any) => (
+            <div key={p.id} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10">
+              <div>
+                <p className="text-white text-sm font-medium">{p.name}</p>
+                <p className="text-gray-500 text-xs">{durationLabel[p.duration_months] ?? `${p.duration_months} months`} · {fmtBytes(p.monthly_quota_bytes)}/mo</p>
+              </div>
+              <button
+                onClick={() => assign.mutate(p.id)}
+                disabled={user.plan_id === p.id}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+                  user.plan_id === p.id
+                    ? "bg-blue-600/20 text-blue-400 border border-blue-500/30 cursor-default"
+                    : "bg-green-500/10 text-green-400 border border-green-500/20 hover:bg-green-500/20"
+                }`}
+              >
+                {user.plan_id === p.id ? "Active" : "Assign"}
+              </button>
+            </div>
+          ))}
+          {plans.length === 0 && <p className="text-gray-600 text-sm text-center py-4">No plans yet — create one in Plans page</p>}
+        </div>
+        {user.plan_id && (
+          <button
+            onClick={() => remove.mutate()}
+            className="mt-4 w-full px-4 py-2 rounded-xl text-xs text-red-400 hover:bg-red-500/10 border border-red-500/20 transition"
+          >
+            Remove Plan
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -94,6 +167,7 @@ export default function Users() {
   const [form, setForm] = useState({ username: "", email: "", quota_gb: 0 });
   const [copied, setCopied] = useState<string | null>(null);
   const [assigningUser, setAssigningUser] = useState<any>(null);
+  const [planUser, setPlanUser] = useState<any>(null);
 
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["users"],
@@ -139,6 +213,7 @@ export default function Users() {
 
   return (
     <div className="space-y-6">
+      {planUser && <PlanModal user={planUser} onClose={() => setPlanUser(null)} />}
       {assigningUser && (
         <AssignModal user={assigningUser} servers={servers} onClose={() => setAssigningUser(null)} />
       )}
@@ -185,7 +260,7 @@ export default function Users() {
               <th className="text-left px-5 py-3.5 text-gray-500 text-xs font-semibold uppercase tracking-wider">User</th>
               <th className="text-left px-5 py-3.5 text-gray-500 text-xs font-semibold uppercase tracking-wider">Status</th>
               <th className="text-left px-5 py-3.5 text-gray-500 text-xs font-semibold uppercase tracking-wider">Usage</th>
-              <th className="text-left px-5 py-3.5 text-gray-500 text-xs font-semibold uppercase tracking-wider">Expires</th>
+              <th className="text-left px-5 py-3.5 text-gray-500 text-xs font-semibold uppercase tracking-wider">Plan / Expires</th>
               <th className="text-right px-5 py-3.5 text-gray-500 text-xs font-semibold uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
@@ -214,11 +289,20 @@ export default function Users() {
                 <td className="px-5 py-4">
                   <QuotaBar used={u.bytes_used} quota={u.quota_bytes} />
                 </td>
-                <td className="px-5 py-4 text-gray-400 text-sm">
-                  {u.expires_at ? new Date(u.expires_at).toLocaleDateString() : <span className="text-gray-600">Never</span>}
+                <td className="px-5 py-4">
+                  {u.expires_at
+                    ? <div>
+                        <p className="text-gray-300 text-sm">{new Date(u.expires_at).toLocaleDateString()}</p>
+                        {u.next_reset_at && <p className="text-gray-600 text-xs mt-0.5">resets {new Date(u.next_reset_at).toLocaleDateString()}</p>}
+                      </div>
+                    : <span className="text-gray-600 text-sm">No plan</span>}
                 </td>
                 <td className="px-5 py-4">
                   <div className="flex gap-1.5 justify-end">
+                    <button title="Assign plan" onClick={() => setPlanUser(u)}
+                      className="p-2 rounded-lg bg-white/5 hover:bg-blue-500/20 hover:text-blue-400 text-gray-500 transition">
+                      <Package className="w-3.5 h-3.5" />
+                    </button>
                     <button title="Assign servers" onClick={() => setAssigningUser(u)}
                       className="p-2 rounded-lg bg-white/5 hover:bg-purple-500/20 hover:text-purple-400 text-gray-500 transition">
                       <ServerIcon className="w-3.5 h-3.5" />

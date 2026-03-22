@@ -1,12 +1,13 @@
 import { BrowserRouter, Routes, Route, Navigate, NavLink } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { LayoutDashboard, Users, Server, LogOut, Shield, BarChart2 } from "lucide-react";
+import { LayoutDashboard, Users, Server, LogOut, Shield, BarChart2, Package } from "lucide-react";
 import { useAuth } from "@/store/auth";
 import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
 import UsersPage from "@/pages/Users";
 import ServersPage from "@/pages/Servers";
 import StatsPage from "@/pages/Stats";
+import PlansPage from "@/pages/Plans";
 
 const qc = new QueryClient();
 
@@ -51,6 +52,9 @@ function Layout({ children }: { children: React.ReactNode }) {
           <NavLink to="/servers" className={navClass}>
             <Server className="w-4 h-4" /> Servers
           </NavLink>
+          <NavLink to="/plans" className={navClass}>
+            <Package className="w-4 h-4" /> Plans
+          </NavLink>
         </nav>
 
         {/* Logout */}
@@ -87,6 +91,7 @@ export default function App() {
           <Route path="/stats" element={<ProtectedRoute><Layout><StatsPage /></Layout></ProtectedRoute>} />
           <Route path="/users" element={<ProtectedRoute><Layout><UsersPage /></Layout></ProtectedRoute>} />
           <Route path="/servers" element={<ProtectedRoute><Layout><ServersPage /></Layout></ProtectedRoute>} />
+          <Route path="/plans" element={<ProtectedRoute><Layout><PlansPage /></Layout></ProtectedRoute>} />
         </Routes>
       </BrowserRouter>
     </QueryClientProvider>
