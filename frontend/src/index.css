@@ -2,6 +2,31 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  @apply bg-gray-950 text-white;
+@layer base {
+  body {
+    @apply bg-[#0a0c12] text-white antialiased;
+  }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { @apply bg-transparent; }
+  ::-webkit-scrollbar-thumb { @apply bg-gray-700 rounded-full; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-gray-500; }
+}
+
+@layer utilities {
+  .glass {
+    @apply bg-white/5 backdrop-blur-sm border border-white/10;
+  }
+  .glow-blue {
+    box-shadow: 0 0 24px 0 rgba(59,130,246,0.2);
+  }
+  .glow-green {
+    box-shadow: 0 0 24px 0 rgba(34,197,94,0.2);
+  }
+  .glow-purple {
+    box-shadow: 0 0 24px 0 rgba(168,85,247,0.2);
+  }
+  .glow-orange {
+    box-shadow: 0 0 24px 0 rgba(249,115,22,0.2);
+  }
 }
