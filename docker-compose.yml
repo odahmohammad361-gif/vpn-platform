@@ -1,0 +1,45 @@
+version: "3.9"
+
+# ── Deployment: Amazon Windows Server (Docker Desktop / WSL2) ──
+# Database: Aurora RDS PostgreSQL (external — not in compose)
+# VPN Servers: 2x Contabo Ubuntu (run agent separately)
+
+services:
+  backend:
+    build: ./backend
+    restart: always
+    env_file: .env
+    # DATABASE_URL points to Aurora RDS — set in .env
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks:
+      - vpn_net
+
+  frontend:
+    build: ./frontend
+    restart: always
+    networks:
+      - vpn_net
+
+  nginx:
+    build: ./nginx
+    restart: always
+    ports:
+      - "8080:8080"
+      - "8443:8443"
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_started
+    networks:
+      - vpn_net
+    volumes:
+      - ./nginx/certs:/etc/nginx/certs:ro
+
+networks:
+  vpn_net:
+    driver: bridge
