@@ -148,13 +148,14 @@ cat > /usr/local/bin/vpn-agent.sh << 'AGENT_EOF'
 #!/bin/bash
 # ================================================
 #  VPN Agent — runs on each Contabo Ubuntu server
-#  Syncs users with admin API via static config
+#  Syncs users + reports traffic via iptables
 # ================================================
 
 API_BASE="REPLACE_WITH_API_BASE/api/agent"
 SERVER_ID="REPLACE_WITH_SERVER_UUID"
 AGENT_SECRET="REPLACE_WITH_AGENT_SECRET"
 SS_CONFIG="/etc/shadowsocks/config.json"
+PORT_MAP="/tmp/vpn_port_map.json"
 CYCLE_SECONDS=30
 
 # ── HMAC signature ────────────────────────────────
@@ -186,11 +187,28 @@ api_post() {
         -d "$body"
 }
 
+# ── iptables accounting per port ──────────────────
+setup_accounting() {
+    iptables -N VPN_IN  2>/dev/null || iptables -F VPN_IN
+    iptables -N VPN_OUT 2>/dev/null || iptables -F VPN_OUT
+    iptables -C INPUT  -j VPN_IN  2>/dev/null || iptables -I INPUT  -j VPN_IN
+    iptables -C OUTPUT -j VPN_OUT 2>/dev/null || iptables -I OUTPUT -j VPN_OUT
+
+    while IFS= read -r port; do
+        [[ -z "$port" ]] && continue
+        iptables -A VPN_IN  -p tcp --dport "$port"
+        iptables -A VPN_IN  -p udp --dport "$port"
+        iptables -A VPN_OUT -p tcp --sport "$port"
+        iptables -A VPN_OUT -p udp --sport "$port"
+    done < <(python3 -c "import json,sys; [print(p) for p in json.load(open('$PORT_MAP')).keys()]" 2>/dev/null)
+}
+
 # ── Sync users — write config + restart ssserver ──
 sync_users() {
     local config
     config=$(api_get "/config/${SERVER_ID}") || { echo "[sync] Failed to fetch config"; return 1; }
 
+    # Write shadowsocks multi-port config
     echo "$config" | python3 -c "
 import sys, json
 entries = json.load(sys.stdin)
@@ -207,11 +225,71 @@ for e in entries:
 print(json.dumps({'servers': servers}, indent=4))
 " > "$SS_CONFIG"
 
+    # Save port → user_server_id map for traffic reporting
+    echo "$config" | python3 -c "
+import sys, json
+entries = json.load(sys.stdin)
+print(json.dumps({str(e['port']): str(e['user_server_id']) for e in entries}))
+" > "$PORT_MAP"
+
     systemctl restart shadowsocks
-    echo "[sync] Config written with $(echo "$config" | python3 -c "import sys,json; print(len(json.load(sys.stdin)))" 2>/dev/null) user(s), shadowsocks restarted"
+    setup_accounting
+    echo "[sync] Config written with $(echo "$config" | python3 -c "import sys,json; print(len(json.load(sys.stdin)))" 2>/dev/null) user(s)"
 
     api_post "/sync-ack/${SERVER_ID}" "{}"
     echo "[sync] Sync complete"
+}
+
+# ── Report traffic via iptables byte counts ───────
+report_traffic() {
+    [[ ! -f "$PORT_MAP" ]] && return
+    local port_map
+    port_map=$(cat "$PORT_MAP")
+    [[ "$port_map" == "{}" ]] && return
+
+    local payload
+    payload=$(python3 - << PYEOF
+import subprocess, json, re
+
+port_map = json.loads('$port_map')
+
+def read_chain(chain, field):
+    try:
+        out = subprocess.check_output(['iptables', '-vnL', chain], stderr=subprocess.DEVNULL).decode()
+    except:
+        return {}
+    result = {}
+    for line in out.splitlines():
+        m = re.search(r'^\s*\d+\s+(\d+)\s+.*?' + field + r':(\d+)', line)
+        if m:
+            result[m.group(2)] = int(m.group(1))
+    return result
+
+dl = read_chain('VPN_IN',  'dpt')
+ul = read_chain('VPN_OUT', 'spt')
+
+entries = []
+for port, uid in port_map.items():
+    d = dl.get(port, 0)
+    u = ul.get(port, 0)
+    if d > 0 or u > 0:
+        entries.append({
+            'user_server_id': uid,
+            'upload_bytes': u,
+            'download_bytes': d,
+            'interval_sec': $CYCLE_SECONDS
+        })
+print(json.dumps(entries))
+PYEOF
+)
+
+    if [[ -n "$payload" && "$payload" != "[]" ]]; then
+        api_post "/traffic/${SERVER_ID}" "$payload" > /dev/null
+        # Reset iptables counters after reporting
+        iptables -Z VPN_IN  2>/dev/null || true
+        iptables -Z VPN_OUT 2>/dev/null || true
+        echo "[traffic] Reported: $payload"
+    fi
 }
 
 # ── Main loop ─────────────────────────────────────
@@ -225,6 +303,7 @@ while true; do
         sync_users
     fi
 
+    report_traffic
     sleep "$CYCLE_SECONDS"
 done
 AGENT_EOF

@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from typing import Optional
 from app.database import get_db
 from app.models.server import Server
-from app.models.user import UserServer
+from app.models.user import User, UserServer
 from app.models.traffic import TrafficLog
 from app.utils.crypto import verify_agent_signature
 
