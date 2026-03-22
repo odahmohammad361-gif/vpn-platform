@@ -29,14 +29,11 @@ YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
-SS_PORT=443
 SS_METHOD="chacha20-ietf-poly1305"
 SS_VERSION="1.21.2"
 SS_DIR="/etc/shadowsocks"
 SS_BIN="/usr/local/bin/ssserver"
-SS_MGR="/usr/local/bin/ssmanager"
 SS_LOG="/var/log/shadowsocks.log"
-MANAGER_SOCK="/var/run/shadowsocks-manager.sock"
 
 echo ""
 echo -e "${CYAN}================================================${NC}"
@@ -47,7 +44,7 @@ echo ""
 # ── STEP 1 — System packages ─────────────────────
 echo -e "${YELLOW}[1/7] Installing system packages...${NC}"
 apt-get update -qq
-apt-get install -y -qq curl wget tar xz-utils ufw fail2ban netcat-openbsd openssl python3 jq
+apt-get install -y -qq curl wget tar xz-utils ufw fail2ban openssl python3 jq
 echo -e "${GREEN}      Done${NC}"
 
 # ── STEP 2 — Download shadowsocks-rust ───────────
@@ -68,22 +65,17 @@ SS_URL="https://github.com/shadowsocks/shadowsocks-rust/releases/download/v${SS_
 wget -q --show-progress "$SS_URL" -O /tmp/ss.tar.xz
 tar -xf /tmp/ss.tar.xz -C /tmp/
 cp /tmp/ssserver "$SS_BIN"
-cp /tmp/ssmanager "$SS_MGR"
-chmod +x "$SS_BIN" "$SS_MGR"
+chmod +x "$SS_BIN"
 rm -f /tmp/ss.tar.xz /tmp/ssserver /tmp/sslocal /tmp/ssurl /tmp/ssmanager 2>/dev/null || true
-echo -e "${GREEN}      Installed: $SS_BIN + $SS_MGR${NC}"
+echo -e "${GREEN}      Installed: $SS_BIN${NC}"
 
-# ── STEP 3 — shadowsocks config (manager mode) ───
+# ── STEP 3 — shadowsocks initial config ──────────
 echo -e "${YELLOW}[3/7] Writing shadowsocks config...${NC}"
 
 mkdir -p "$SS_DIR"
-cat > "$SS_DIR/config.json" << EOF
+cat > "$SS_DIR/config.json" << 'EOF'
 {
-    "server": "0.0.0.0",
-    "method": "$SS_METHOD",
-    "timeout": 300,
-    "mode": "tcp_and_udp",
-    "fast_open": true
+    "servers": []
 }
 EOF
 echo -e "${GREEN}      Done${NC}"
@@ -109,28 +101,28 @@ echo -e "${GREEN}      BBR: $(sysctl -n net.ipv4.tcp_congestion_control)${NC}"
 
 # ── STEP 5 — UFW firewall ─────────────────────────
 echo -e "${YELLOW}[5/7] Configuring firewall...${NC}"
-ufw allow ssh           > /dev/null 2>&1
-ufw allow 80/tcp        > /dev/null 2>&1
-ufw allow "$SS_PORT"/tcp > /dev/null 2>&1
+ufw allow ssh             > /dev/null 2>&1
+ufw allow 80/tcp          > /dev/null 2>&1
+ufw allow 443/tcp         > /dev/null 2>&1
 ufw allow 20000:29999/tcp > /dev/null 2>&1
 ufw allow 20000:29999/udp > /dev/null 2>&1
-echo "y" | ufw enable  > /dev/null 2>&1
-echo -e "${GREEN}      Ports $SS_PORT, 20000-29999 open${NC}"
+echo "y" | ufw enable     > /dev/null 2>&1
+echo -e "${GREEN}      Ports 443, 20000-29999 open${NC}"
 
-# ── STEP 6 — shadowsocks systemd (manager socket) ─
-echo -e "${YELLOW}[6/7] Creating shadowsocks service (manager mode)...${NC}"
+# ── STEP 6 — shadowsocks systemd ─────────────────
+echo -e "${YELLOW}[6/7] Creating shadowsocks service...${NC}"
 
 touch "$SS_LOG"
 
 cat > /etc/systemd/system/shadowsocks.service << EOF
 [Unit]
-Description=Shadowsocks-Rust Manager
+Description=Shadowsocks-Rust Server
 After=network.target
 StartLimitIntervalSec=0
 
 [Service]
 Type=simple
-ExecStart=$SS_MGR -c $SS_DIR/config.json --manager-address $MANAGER_SOCK
+ExecStart=$SS_BIN -c $SS_DIR/config.json
 Restart=always
 RestartSec=3
 LimitNOFILE=65536
@@ -156,16 +148,14 @@ cat > /usr/local/bin/vpn-agent.sh << 'AGENT_EOF'
 #!/bin/bash
 # ================================================
 #  VPN Agent — runs on each Contabo Ubuntu server
-#  Syncs users with admin API + reports traffic
+#  Syncs users with admin API via static config
 # ================================================
 
 API_BASE="REPLACE_WITH_API_BASE/api/agent"
 SERVER_ID="REPLACE_WITH_SERVER_UUID"
 AGENT_SECRET="REPLACE_WITH_AGENT_SECRET"
-MANAGER_SOCK="/var/run/shadowsocks-manager.sock"
 SS_CONFIG="/etc/shadowsocks/config.json"
 CYCLE_SECONDS=30
-STATE_FILE="/tmp/ss_traffic_state.json"
 
 # ── HMAC signature ────────────────────────────────
 sign_request() {
@@ -196,113 +186,32 @@ api_post() {
         -d "$body"
 }
 
-# ── Manager socket helpers ────────────────────────
-manager_cmd() {
-    echo -n "$1" | nc -u -w1 -U "$MANAGER_SOCK" 2>/dev/null || true
-}
-
-get_stats() {
-    manager_cmd "stat:" | grep -oP '\{.*\}' || echo "{}"
-}
-
-add_port() {
-    local port="$1" pass="$2" method="$3"
-    manager_cmd "add:{\"server_port\":${port},\"password\":\"${pass}\",\"method\":\"${method}\"}"
-}
-
-remove_port() {
-    local port="$1"
-    manager_cmd "remove:{\"server_port\":${port}}"
-}
-
-# ── Sync users from API ───────────────────────────
+# ── Sync users — write config + restart ssserver ──
 sync_users() {
     local config
-    config=$(api_get "/config/${SERVER_ID}") || return 1
-
-    local current_stats
-    current_stats=$(get_stats)
-    local current_ports
-    current_ports=$(echo "$current_stats" | python3 -c "import sys,json; d=json.load(sys.stdin); print(' '.join(str(k) for k in d.keys()))" 2>/dev/null || echo "")
-
-    local desired_ports
-    desired_ports=$(echo "$config" | python3 -c "
-import sys, json
-entries = json.load(sys.stdin)
-for e in entries:
-    print(e['port'], e['password'], e['method'])
-" 2>/dev/null)
-
-    local new_ports=""
-    while IFS=' ' read -r port pass method; do
-        [[ -z "$port" ]] && continue
-        new_ports="$new_ports $port"
-        if ! echo "$current_ports" | grep -qw "$port"; then
-            add_port "$port" "$pass" "$method"
-            echo "[sync] Added port $port"
-        fi
-    done <<< "$desired_ports"
-
-    for port in $current_ports; do
-        if ! echo "$new_ports" | grep -qw "$port"; then
-            remove_port "$port"
-            echo "[sync] Removed port $port"
-        fi
-    done
+    config=$(api_get "/config/${SERVER_ID}") || { echo "[sync] Failed to fetch config"; return 1; }
 
     echo "$config" | python3 -c "
 import sys, json
 entries = json.load(sys.stdin)
-cfg = {
-    'server': '0.0.0.0',
-    'server_port': entries[0]['port'] if entries else 443,
-    'password': entries[0]['password'] if entries else '',
-    'method': entries[0]['method'] if entries else 'chacha20-ietf-poly1305',
-    'timeout': 300,
-    'mode': 'tcp_and_udp',
-    'fast_open': True,
-    'ipv6_first': False
-}
-print(json.dumps(cfg, indent=4))
-" > "$SS_CONFIG" 2>/dev/null
+servers = []
+for e in entries:
+    servers.append({
+        'server': '0.0.0.0',
+        'server_port': e['port'],
+        'password': e['password'],
+        'method': e['method'],
+        'mode': 'tcp_and_udp',
+        'fast_open': True
+    })
+print(json.dumps({'servers': servers}, indent=4))
+" > "$SS_CONFIG"
+
+    systemctl restart shadowsocks
+    echo "[sync] Config written with $(echo "$config" | python3 -c "import sys,json; print(len(json.load(sys.stdin)))" 2>/dev/null) user(s), shadowsocks restarted"
 
     api_post "/sync-ack/${SERVER_ID}" "{}"
     echo "[sync] Sync complete"
-}
-
-# ── Report traffic ────────────────────────────────
-report_traffic() {
-    local stats
-    stats=$(get_stats)
-    [[ "$stats" == "{}" ]] && return
-
-    local prev="{}"
-    [[ -f "$STATE_FILE" ]] && prev=$(cat "$STATE_FILE")
-
-    local payload
-    payload=$(python3 -c "
-import sys, json
-stats = json.loads('''$stats''')
-prev = json.loads('''$prev''')
-entries = []
-for port, val in stats.items():
-    prev_val = prev.get(port, 0)
-    delta = max(0, val - prev_val)
-    if delta > 0:
-        entries.append({
-            'user_server_id': port,
-            'upload_bytes': delta // 2,
-            'download_bytes': delta // 2,
-            'interval_sec': $CYCLE_SECONDS
-        })
-print(json.dumps(entries))
-" 2>/dev/null)
-
-    if [[ -n "$payload" && "$payload" != "[]" ]]; then
-        api_post "/traffic/${SERVER_ID}" "$payload" > /dev/null
-    fi
-
-    echo "$stats" > "$STATE_FILE"
 }
 
 # ── Main loop ─────────────────────────────────────
@@ -315,8 +224,6 @@ while true; do
     if [[ "$sync_required" == "True" ]]; then
         sync_users
     fi
-
-    report_traffic
 
     sleep "$CYCLE_SECONDS"
 done
@@ -346,7 +253,7 @@ EOF
 
 systemctl daemon-reload
 systemctl enable vpn-agent > /dev/null 2>&1
-systemctl start vpn-agent
+systemctl restart vpn-agent
 sleep 2
 
 AGENT_STATUS=$(systemctl is-active vpn-agent)
