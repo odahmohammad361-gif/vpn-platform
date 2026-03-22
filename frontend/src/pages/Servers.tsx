@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, Wifi, WifiOff, Activity } from "lucide-react";
+import { Plus, Trash2, Wifi, WifiOff, Activity, Copy } from "lucide-react";
 import api from "@/lib/api";
 
 export default function Servers() {
@@ -121,10 +121,28 @@ export default function Servers() {
                 </button>
               </div>
 
-              {/* Agent secret (dimmed) */}
-              <div className="mt-4 pt-4 border-t border-white/5">
-                <p className="text-gray-600 text-xs">Agent Secret</p>
-                <p className="text-gray-700 font-mono text-xs mt-0.5 truncate">{s.agent_secret}</p>
+              {/* IDs for agent install */}
+              <div className="mt-4 pt-4 border-t border-white/5 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <p className="text-gray-600 text-xs mb-1">Server ID</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-gray-500 font-mono text-xs truncate">{s.id}</p>
+                    <button onClick={() => navigator.clipboard.writeText(s.id)}
+                      className="shrink-0 p-1 rounded hover:bg-white/10 text-gray-600 hover:text-gray-300 transition">
+                      <Copy className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-gray-600 text-xs mb-1">Agent Secret</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-gray-500 font-mono text-xs truncate">{s.agent_secret}</p>
+                    <button onClick={() => navigator.clipboard.writeText(s.agent_secret)}
+                      className="shrink-0 p-1 rounded hover:bg-white/10 text-gray-600 hover:text-gray-300 transition">
+                      <Copy className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           );
