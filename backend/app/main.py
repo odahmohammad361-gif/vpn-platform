@@ -1,5 +1,8 @@
+import logging
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import engine, Base
 from app.routers import auth, users, servers, subscription, agent, stats
@@ -16,6 +19,15 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="VPN Platform API", lifespan=lifespan)
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    import sys
+    body = await request.body()
+    print(f"[422 DEBUG] path={request.url.path} body={body!r} errors={exc.errors()}", file=sys.stderr, flush=True)
+    return JSONResponse(status_code=422, content={"detail": exc.errors()})
+
 
 app.add_middleware(
     CORSMiddleware,
