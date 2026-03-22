@@ -12,18 +12,48 @@ from app.services.subscription import build_shadowrocket, build_clash, build_v2r
 router = APIRouter(prefix="/sub", tags=["subscription"])
 
 
+_DISABLED_LABELS = {
+    "quota_exceeded": "Quota Exceeded - Contact Support",
+    "expired": "Account Expired - Contact Support",
+}
+_DISABLED_FALLBACK = "Account Disabled - Contact Support"
+
+# 192.0.2.x is RFC 5737 documentation range — guaranteed unroutable, causes timeout
+_DEAD_HOST = "192.0.2.1"
+_DEAD_PORT = 443
+_DEAD_METHOD = "chacha20-ietf-poly1305"
+_DEAD_PASSWORD = "disabled"
+
+
+def _disabled_slots(reason: str | None) -> list[dict]:
+    label = _DISABLED_LABELS.get(reason or "", _DISABLED_FALLBACK)
+    return [{"name": label, "host": _DEAD_HOST, "port": _DEAD_PORT,
+             "password": _DEAD_PASSWORD, "method": _DEAD_METHOD}]
+
+
+def _respond(slots: list[dict], format: str):
+    if format == "clash":
+        return Response(content=build_clash(slots), media_type="text/yaml")
+    if format == "v2rayng":
+        return PlainTextResponse(build_v2rayng(slots))
+    return PlainTextResponse(build_shadowrocket(slots))
+
+
 @router.get("/{token}")
 async def get_subscription(
     token: uuid.UUID,
     format: str = "shadowrocket",
     db: AsyncSession = Depends(get_db),
 ):
-    # Find user by token
     result = await db.execute(select(User).where(User.subscription_token == token))
     user = result.scalar_one_or_none()
 
-    if not user or not user.is_active:
+    if not user:
         raise HTTPException(403, "Subscription not available")
+
+    # Disabled / quota exceeded → return a dead server so Shadowrocket shows timeout
+    if not user.is_active:
+        return _respond(_disabled_slots(user.disabled_reason), format)
 
     # Get all synced server slots
     result = await db.execute(
@@ -49,14 +79,4 @@ async def get_subscription(
     if not slots:
         raise HTTPException(404, "No active servers assigned")
 
-    if format == "clash":
-        content = build_clash(slots)
-        return Response(content=content, media_type="text/yaml")
-
-    if format == "v2rayng":
-        content = build_v2rayng(slots)
-        return PlainTextResponse(content)
-
-    # Default: shadowrocket (base64)
-    content = build_shadowrocket(slots)
-    return PlainTextResponse(content)
+    return _respond(slots, format)
