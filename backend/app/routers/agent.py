@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from typing import Optional
 from app.database import get_db
 from app.models.server import Server
-from app.models.user import User, UserServer
+from app.models.user import UserServer
 from app.models.traffic import TrafficLog
 from app.utils.crypto import verify_agent_signature
 
@@ -78,19 +78,7 @@ async def report_traffic(
         )
         db.add(log)
 
-        # Update user bytes_used
-        result = await db.execute(
-            select(UserServer).where(UserServer.id == entry.user_server_id)
-        )
-        slot = result.scalar_one_or_none()
-        if slot:
-            user = await db.get(User, slot.user_id)
-            if user:
-                user.bytes_used += entry.upload_bytes + entry.download_bytes
-                if user.quota_bytes > 0 and user.bytes_used >= user.quota_bytes:
-                    user.is_active = False
-                    user.disabled_reason = "quota_exceeded"
-
+    # bytes_used and quota enforcement handled by scheduler (process_traffic)
     await db.commit()
     return {"status": "ok"}
 

@@ -9,7 +9,7 @@ class TrafficLog(Base):
     __tablename__ = "traffic_logs"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
-    user_server_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user_servers.id"))
+    user_server_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user_servers.id", ondelete="CASCADE"))
     upload_bytes: Mapped[int] = mapped_column(BigInteger, default=0)
     download_bytes: Mapped[int] = mapped_column(BigInteger, default=0)
     reported_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)

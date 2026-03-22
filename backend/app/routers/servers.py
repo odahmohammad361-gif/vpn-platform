@@ -3,7 +3,7 @@ import secrets
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator, model_validator
 from typing import Optional
 from app.database import get_db
 from app.dependencies import get_current_admin
@@ -19,6 +19,19 @@ class ServerCreate(BaseModel):
     port_range_start: int = 20000
     port_range_end: int = 29999
     method: str = "chacha20-ietf-poly1305"
+
+    @field_validator("port_range_start", "port_range_end")
+    @classmethod
+    def valid_port(cls, v: int) -> int:
+        if not (1024 <= v <= 65535):
+            raise ValueError("Port must be between 1024 and 65535")
+        return v
+
+    @model_validator(mode="after")
+    def range_order(self) -> "ServerCreate":
+        if self.port_range_start >= self.port_range_end:
+            raise ValueError("port_range_start must be less than port_range_end")
+        return self
 
 
 class ServerUpdate(BaseModel):

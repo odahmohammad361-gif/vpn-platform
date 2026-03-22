@@ -4,12 +4,13 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, text
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator, model_validator
 from typing import Optional
 from app.database import get_db
 from app.dependencies import get_current_admin
 from app.models.user import User, UserServer
 from app.models.server import Server
+from app.config import settings
 
 router = APIRouter(prefix="/users", tags=["users"], dependencies=[Depends(get_current_admin)])
 
@@ -124,9 +125,9 @@ async def assign_server(user_id: uuid.UUID, server_id: uuid.UUID, db: AsyncSessi
     if not user or not server:
         raise HTTPException(404, "User or Server not found")
 
-    # Allocate next free port
+    # Allocate next free port — lock rows to prevent race condition
     used_ports = await db.execute(
-        select(UserServer.port).where(UserServer.server_id == server_id)
+        select(UserServer.port).where(UserServer.server_id == server_id).with_for_update()
     )
     taken = set(used_ports.scalars().all())
     free_port = next(
@@ -174,7 +175,7 @@ async def get_subscription_urls(user_id: uuid.UUID, db: AsyncSession = Depends(g
     user = await db.get(User, user_id)
     if not user:
         raise HTTPException(404, "User not found")
-    base = "https://52.77.235.166:8443"
+    base = settings.SUBSCRIPTION_BASE_URL
     token = user.subscription_token
     return {
         "shadowrocket": f"{base}/sub/{token}",
