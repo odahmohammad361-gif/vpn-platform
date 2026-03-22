@@ -31,12 +31,29 @@ def _disabled_slots(reason: str | None) -> list[dict]:
              "password": _DEAD_PASSWORD, "method": _DEAD_METHOD}]
 
 
-def _respond(slots: list[dict], format: str):
+def _userinfo_header(user: User) -> str:
+    """Build Subscription-Userinfo header for Shadowrocket/Clash to display."""
+    parts = [
+        f"upload=0",
+        f"download={user.bytes_used}",
+    ]
+    if user.quota_bytes > 0:
+        parts.append(f"total={user.quota_bytes}")
+    if user.expires_at:
+        parts.append(f"expire={int(user.expires_at.timestamp())}")
+    return "; ".join(parts)
+
+
+def _respond(slots: list[dict], format: str, user: User | None = None):
     if format == "clash":
-        return Response(content=build_clash(slots), media_type="text/yaml")
-    if format == "v2rayng":
-        return PlainTextResponse(build_v2rayng(slots))
-    return PlainTextResponse(build_shadowrocket(slots))
+        resp = Response(content=build_clash(slots), media_type="text/yaml")
+    elif format == "v2rayng":
+        resp = PlainTextResponse(build_v2rayng(slots))
+    else:
+        resp = PlainTextResponse(build_shadowrocket(slots))
+    if user:
+        resp.headers["Subscription-Userinfo"] = _userinfo_header(user)
+    return resp
 
 
 @router.get("/{token}")
@@ -53,7 +70,7 @@ async def get_subscription(
 
     # Disabled / quota exceeded → return a dead server so Shadowrocket shows timeout
     if not user.is_active:
-        return _respond(_disabled_slots(user.disabled_reason), format)
+        return _respond(_disabled_slots(user.disabled_reason), format, user)
 
     # Get all synced server slots
     result = await db.execute(
@@ -79,4 +96,4 @@ async def get_subscription(
     if not slots:
         raise HTTPException(404, "No active servers assigned")
 
-    return _respond(slots, format)
+    return _respond(slots, format, user)
