@@ -1,7 +1,7 @@
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from app.database import SessionLocal
 from app.models.user import User
 from app.models.traffic import TrafficLog, DailyTraffic
@@ -47,7 +47,7 @@ async def process_traffic():
                 user.disabled_reason = "quota_exceeded"
 
             # Auto-disable on expiry
-            if user.expires_at and user.expires_at < datetime.utcnow():
+            if user.expires_at and user.expires_at < datetime.now(timezone.utc):
                 user.is_active = False
                 user.disabled_reason = "expired"
 

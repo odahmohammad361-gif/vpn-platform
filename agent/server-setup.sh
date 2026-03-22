@@ -251,11 +251,12 @@ report_traffic() {
     payload=$(python3 - << PYEOF
 import subprocess, json, re
 
-port_map = json.loads('$port_map')
+with open('$PORT_MAP') as _f:
+    port_map = json.load(_f)
 
 def read_chain(chain, field):
     try:
-        out = subprocess.check_output(['iptables', '-vnL', chain], stderr=subprocess.DEVNULL).decode()
+        out = subprocess.check_output(['iptables', '-xvnL', chain], stderr=subprocess.DEVNULL).decode()
     except:
         return {}
     result = {}

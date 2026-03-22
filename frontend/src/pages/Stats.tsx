@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 function fmtBytes(b: number) {
   if (b >= 1e9) return (b / 1e9).toFixed(2) + " GB";
@@ -46,7 +46,9 @@ export default function Stats() {
             <XAxis dataKey="date" stroke="#9ca3af" tick={{ fontSize: 12 }} />
             <YAxis stroke="#9ca3af" tickFormatter={(v) => fmtBytes(v)} tick={{ fontSize: 12 }} />
             <Tooltip formatter={(v: number) => fmtBytes(v)} />
-            <Bar dataKey="bytes" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+            <Legend />
+            <Bar dataKey="download" name="Download" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="upload" name="Upload" fill="#22c55e" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
