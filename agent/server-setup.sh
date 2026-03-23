@@ -173,7 +173,7 @@ fi
 mkdir -p "$AGH_DIR"
 cat > "$AGH_DIR/AdGuardHome.yaml" << 'YAML_EOF'
 http:
-  address: 127.0.0.1:3000
+  address: 0.0.0.0:3000
 users:
   - name: admin
     password: "HASH_PLACEHOLDER"
@@ -234,6 +234,7 @@ ufw allow 80/tcp          > /dev/null 2>&1 || true
 ufw allow 443/tcp         > /dev/null 2>&1 || true
 ufw allow 53/tcp          > /dev/null 2>&1 || true
 ufw allow 53/udp          > /dev/null 2>&1 || true
+ufw allow 3000/tcp        > /dev/null 2>&1 || true
 ufw allow 20000:29999/tcp > /dev/null 2>&1 || true
 ufw allow 20000:29999/udp > /dev/null 2>&1 || true
 echo "y" | ufw enable     > /dev/null 2>&1 || true
