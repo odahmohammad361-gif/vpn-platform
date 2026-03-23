@@ -232,14 +232,14 @@ echo -e "${GREEN}      Password  : ${AGH_PASSWORD}${NC}"
 # ── STEP 6 — UFW + bot blocking ──────────────────
 echo -e "${YELLOW}[6/9] Configuring firewall + bot blocking...${NC}"
 
-ufw allow ssh             > /dev/null 2>&1
-ufw allow 80/tcp          > /dev/null 2>&1
-ufw allow 443/tcp         > /dev/null 2>&1
-ufw allow 53/tcp          > /dev/null 2>&1
-ufw allow 53/udp          > /dev/null 2>&1
-ufw allow 20000:29999/tcp > /dev/null 2>&1
-ufw allow 20000:29999/udp > /dev/null 2>&1
-echo "y" | ufw enable     > /dev/null 2>&1
+ufw allow ssh             > /dev/null 2>&1 || true
+ufw allow 80/tcp          > /dev/null 2>&1 || true
+ufw allow 443/tcp         > /dev/null 2>&1 || true
+ufw allow 53/tcp          > /dev/null 2>&1 || true
+ufw allow 53/udp          > /dev/null 2>&1 || true
+ufw allow 20000:29999/tcp > /dev/null 2>&1 || true
+ufw allow 20000:29999/udp > /dev/null 2>&1 || true
+echo "y" | ufw enable     > /dev/null 2>&1 || true
 
 # Rate-limit new TCP connections to VPN ports: max 15 new per IP per minute
 # Saves iptables rules so they survive reboot (iptables-persistent)
