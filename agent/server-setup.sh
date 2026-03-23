@@ -46,9 +46,8 @@ echo ""
 echo -e "${YELLOW}[1/9] Installing system packages...${NC}"
 apt-get update -qq
 apt-get install -y -qq curl wget tar xz-utils ufw fail2ban openssl python3 jq
-# optional packages — ignore failures
+# optional — ignore if unavailable
 apt-get install -y python3-bcrypt 2>/dev/null || true
-apt-get install -y iptables-persistent 2>/dev/null || true
 echo -e "${GREEN}      Done${NC}"
 
 # ── STEP 2 — Download shadowsocks-rust ───────────
@@ -245,7 +244,7 @@ iptables -A INPUT -p tcp --dport 20000:29999 -m state --state NEW \
     -m recent --name vpn_ratelimit --set 2>/dev/null || true
 iptables -A INPUT -p tcp --dport 20000:29999 -m state --state NEW \
     -m recent --name vpn_ratelimit --update --seconds 60 --hitcount 15 -j DROP 2>/dev/null || true
-netfilter-persistent save > /dev/null 2>&1 || true  # skipped if iptables-persistent not installed
+# UFW already persists rules across reboots natively
 
 echo -e "${GREEN}      Firewall active, bot rate-limit applied${NC}"
 
