@@ -11,7 +11,7 @@ from app.database import get_db
 from app.dependencies import get_current_admin
 from app.models.user import User, UserServer
 from app.models.server import Server
-from app.models.traffic import DailyTraffic
+from app.models.traffic import DailyTraffic, TrafficLog
 from app.models.plan import Plan
 from app.config import settings
 
@@ -92,7 +92,11 @@ async def delete_user(user_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     user = await db.get(User, user_id)
     if not user:
         raise HTTPException(404, "User not found")
+    # Explicit deletion in FK-safe order (async ORM can't auto-cascade)
+    user_server_ids = select(UserServer.id).where(UserServer.user_id == user_id)
+    await db.execute(delete(TrafficLog).where(TrafficLog.user_server_id.in_(user_server_ids)))
     await db.execute(delete(DailyTraffic).where(DailyTraffic.user_id == user_id))
+    await db.execute(delete(UserServer).where(UserServer.user_id == user_id))
     await db.delete(user)
     await db.commit()
 
