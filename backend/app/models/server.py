@@ -18,6 +18,7 @@ class Server(Base):
     method: Mapped[str] = mapped_column(String(64), default="chacha20-ietf-poly1305")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     adguard_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    force_sync: Mapped[bool] = mapped_column(Boolean, default=False)
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
 

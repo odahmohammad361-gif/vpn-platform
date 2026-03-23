@@ -77,7 +77,6 @@ async def get_subscription(
         select(UserServer, Server)
         .join(Server, UserServer.server_id == Server.id)
         .where(UserServer.user_id == user.id)
-        .where(UserServer.is_synced == True)
         .where(Server.is_active == True)
     )
     rows = result.all()

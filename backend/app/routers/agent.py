@@ -99,7 +99,7 @@ async def heartbeat(
             UserServer.is_synced == False
         )
     )
-    sync_required = result.scalar_one_or_none() is not None
+    sync_required = server.force_sync or (result.scalar_one_or_none() is not None)
     return {"sync_required": sync_required, "adguard_enabled": server.adguard_enabled}
 
 
@@ -114,5 +114,6 @@ async def sync_ack(
         .where(UserServer.server_id == server_id)
         .values(is_synced=True)
     )
+    server.force_sync = False
     await db.commit()
     return {"status": "synced"}

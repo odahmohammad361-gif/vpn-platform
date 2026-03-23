@@ -4,7 +4,7 @@ import calendar
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, text, delete
+from sqlalchemy import select, text, delete, update
 from pydantic import BaseModel, field_validator, model_validator
 from typing import Optional
 from app.database import get_db
@@ -92,6 +92,13 @@ async def delete_user(user_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     user = await db.get(User, user_id)
     if not user:
         raise HTTPException(404, "User not found")
+    # Mark affected servers for re-sync so deleted user's port is removed
+    affected = await db.execute(select(UserServer.server_id).where(UserServer.user_id == user_id))
+    server_ids = affected.scalars().all()
+    if server_ids:
+        await db.execute(
+            update(Server).where(Server.id.in_(server_ids)).values(force_sync=True)
+        )
     # Explicit deletion in FK-safe order (async ORM can't auto-cascade)
     user_server_ids = select(UserServer.id).where(UserServer.user_id == user_id)
     await db.execute(delete(TrafficLog).where(TrafficLog.user_server_id.in_(user_server_ids)))
@@ -119,6 +126,13 @@ async def disable_user(user_id: uuid.UUID, reason: str = "manual", db: AsyncSess
         raise HTTPException(404, "User not found")
     user.is_active = False
     user.disabled_reason = reason
+    # Force re-sync so agent removes this user's port from shadowsocks
+    affected = await db.execute(select(UserServer.server_id).where(UserServer.user_id == user_id))
+    server_ids = affected.scalars().all()
+    if server_ids:
+        await db.execute(
+            update(Server).where(Server.id.in_(server_ids)).values(force_sync=True)
+        )
     await db.commit()
     return {"status": "disabled"}
 
