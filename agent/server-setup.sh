@@ -212,7 +212,7 @@ StartLimitIntervalSec=0
 
 [Service]
 Type=simple
-ExecStart=${AGH_BIN} --no-check-update -c ${AGH_DIR}/AdGuardHome.yaml -h ${AGH_DIR} --work-dir ${AGH_DIR}
+ExecStart=${AGH_BIN} --no-check-update -c ${AGH_DIR}/AdGuardHome.yaml --work-dir ${AGH_DIR}
 Restart=on-failure
 RestartSec=5
 LimitNOFILE=65536
