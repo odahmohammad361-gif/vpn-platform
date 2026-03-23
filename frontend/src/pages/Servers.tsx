@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, Wifi, WifiOff, Activity, Copy, Shield, ShieldOff } from "lucide-react";
+import { Plus, Trash2, Wifi, WifiOff, Activity, Copy, Shield, ShieldOff, ExternalLink } from "lucide-react";
 import api from "@/lib/api";
 
 export default function Servers() {
@@ -133,6 +133,17 @@ export default function Servers() {
                   >
                     {s.adguard_enabled ? <Shield className="w-4 h-4" /> : <ShieldOff className="w-4 h-4" />}
                   </button>
+                  {s.adguard_enabled && (
+                    <a
+                      href={`http://${s.host}:3000`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="Open AdGuard Home"
+                      className="p-2 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 hover:bg-green-500/20 transition"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                    </a>
+                  )}
                   <button onClick={() => { if (confirm(`Delete server ${s.name}?`)) deleteServer.mutate(s.id); }}
                     className="p-2 rounded-xl bg-white/5 hover:bg-red-500/20 hover:text-red-400 text-gray-600 transition">
                     <Trash2 className="w-4 h-4" />
