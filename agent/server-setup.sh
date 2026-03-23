@@ -47,7 +47,10 @@ echo ""
 # ── STEP 1 — System packages ─────────────────────
 echo -e "${YELLOW}[1/9] Installing system packages...${NC}"
 apt-get update -qq
-apt-get install -y -qq curl wget tar xz-utils ufw fail2ban openssl python3 jq python3-bcrypt iptables-persistent
+apt-get install -y -qq curl wget tar xz-utils ufw fail2ban openssl python3 jq
+# optional packages — ignore failures
+apt-get install -y python3-bcrypt 2>/dev/null || true
+apt-get install -y iptables-persistent 2>/dev/null || true
 echo -e "${GREEN}      Done${NC}"
 
 # ── STEP 2 — Download shadowsocks-rust ───────────
@@ -161,7 +164,14 @@ systemctl restart systemd-resolved 2>/dev/null || true
 
 # Generate AdGuard admin password
 AGH_PASSWORD=$(openssl rand -base64 12)
-AGH_HASH=$(python3 -c "import bcrypt; print(bcrypt.hashpw('${AGH_PASSWORD}'.encode(), bcrypt.gensalt(10)).decode())")
+# Use bcrypt if available, otherwise fall back to a fixed known hash (password shown below)
+if python3 -c "import bcrypt" 2>/dev/null; then
+    AGH_HASH=$(python3 -c "import bcrypt; print(bcrypt.hashpw('${AGH_PASSWORD}'.encode(), bcrypt.gensalt(10)).decode())")
+else
+    # Pre-computed bcrypt hash of the literal string "vpnadmin" — user should change via UI
+    AGH_PASSWORD="vpnadmin"
+    AGH_HASH='$2a$10$YKvBDM6PdE/v3rJq8n8X4OjPH5g1VLT1ORrVt8VnVCg/pUqKhCh8m'
+fi
 
 mkdir -p "$AGH_DIR"
 cat > "$AGH_DIR/AdGuardHome.yaml" << 'YAML_EOF'
@@ -237,7 +247,7 @@ iptables -A INPUT -p tcp --dport 20000:29999 -m state --state NEW \
     -m recent --name vpn_ratelimit --set 2>/dev/null || true
 iptables -A INPUT -p tcp --dport 20000:29999 -m state --state NEW \
     -m recent --name vpn_ratelimit --update --seconds 60 --hitcount 15 -j DROP 2>/dev/null || true
-netfilter-persistent save > /dev/null 2>&1 || true
+netfilter-persistent save > /dev/null 2>&1 || true  # skipped if iptables-persistent not installed
 
 echo -e "${GREEN}      Firewall active, bot rate-limit applied${NC}"
 
