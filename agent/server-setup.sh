@@ -436,6 +436,7 @@ PYEOF
 
 # ── Main loop ─────────────────────────────────────
 echo "[agent] Starting VPN agent for server ${SERVER_ID}"
+FIRST_RUN=true
 
 while true; do
     # ── Heartbeat ─────────────────────────────────
@@ -444,13 +445,16 @@ while true; do
     sync_required=$(echo "$response" | python3 -c "import sys,json; print(json.load(sys.stdin).get('sync_required', False))" 2>/dev/null)
     adguard_enabled=$(echo "$response" | python3 -c "import sys,json; print(json.load(sys.stdin).get('adguard_enabled', False))" 2>/dev/null)
 
-    # ── Sync users if needed ───────────────────────
-    if [[ "$sync_required" == "True" ]]; then
+    # ── Sync users if needed (always on first run) ─
+    if [[ "$sync_required" == "True" || "$FIRST_RUN" == "true" ]]; then
         sync_users
+        FIRST_RUN=false
     fi
 
     # ── Watchdog: restart shadowsocks if down ──────
-    if ! systemctl is-active --quiet shadowsocks; then
+    # Skip if config has no servers — nothing to run yet
+    server_count=$(python3 -c "import json; d=json.load(open('$SS_CONFIG')); print(len(d.get('servers', [])))" 2>/dev/null || echo 0)
+    if [[ "$server_count" -gt 0 ]] && ! systemctl is-active --quiet shadowsocks; then
         echo "[watchdog] Shadowsocks is down — restarting"
         systemctl restart shadowsocks
         sleep 2
