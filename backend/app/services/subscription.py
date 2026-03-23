@@ -26,7 +26,16 @@ def build_clash(slots: list[dict]) -> str:
         for s in slots
     ]
     proxy_names = [s["name"] for s in slots]
+    # Use VPN server IPs as DNS — routes through AdGuard Home when enabled
+    dns_servers = list(dict.fromkeys(s["host"] for s in slots))
     config = {
+        "dns": {
+            "enable": True,
+            "ipv6": False,
+            "nameserver": dns_servers,
+            "fallback": ["8.8.8.8", "1.1.1.1"],
+            "fallback-filter": {"geoip": True, "geoip-code": "CN"},
+        },
         "proxies": proxies,
         "proxy-groups": [
             {"name": "VPN", "type": "select", "proxies": proxy_names}
