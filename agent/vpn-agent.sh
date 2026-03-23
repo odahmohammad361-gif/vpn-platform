@@ -109,7 +109,8 @@ cfg = {
     'method': entries[0]['method'] if entries else 'chacha20-ietf-poly1305',
     'timeout': 300,
     'mode': 'tcp_and_udp',
-    'fast_open': True,
+    'fast_open': False,
+    'mtu': 1400,
     'ipv6_first': False
 }
 print(json.dumps(cfg, indent=4))
