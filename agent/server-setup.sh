@@ -277,10 +277,10 @@ EOF
 
 systemctl daemon-reload
 systemctl enable shadowsocks > /dev/null 2>&1
-systemctl restart shadowsocks
+systemctl restart shadowsocks || true   # may exit non-zero with empty config — agent will sync
 sleep 2
 
-SS_STATUS=$(systemctl is-active shadowsocks)
+SS_STATUS=$(systemctl is-active shadowsocks || echo "waiting")
 echo -e "${GREEN}      Shadowsocks: $SS_STATUS${NC}"
 
 # ── STEP 8 — Install VPN agent ───────────────────
