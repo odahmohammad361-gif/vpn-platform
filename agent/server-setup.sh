@@ -1,7 +1,7 @@
 #!/bin/bash
 # ================================================
 #  VPN Server Full Setup
-#  Installs shadowsocks-rust + agent in one shot
+#  Installs shadowsocks-rust + AdGuard Home + agent
 #  Usage: sudo bash server-setup.sh <SERVER_ID> <AGENT_SECRET> <API_BASE>
 #  Example: sudo bash server-setup.sh abc-uuid secret123 https://52.77.235.166:8443
 # ================================================
@@ -34,6 +34,9 @@ SS_VERSION="1.21.2"
 SS_DIR="/etc/shadowsocks"
 SS_BIN="/usr/local/bin/ssserver"
 SS_LOG="/var/log/shadowsocks.log"
+AGH_VERSION="0.107.52"
+AGH_DIR="/var/lib/adguardhome"
+AGH_BIN="/usr/local/bin/AdGuardHome"
 
 echo ""
 echo -e "${CYAN}================================================${NC}"
@@ -42,13 +45,13 @@ echo -e "${CYAN}================================================${NC}"
 echo ""
 
 # ── STEP 1 — System packages ─────────────────────
-echo -e "${YELLOW}[1/7] Installing system packages...${NC}"
+echo -e "${YELLOW}[1/9] Installing system packages...${NC}"
 apt-get update -qq
-apt-get install -y -qq curl wget tar xz-utils ufw fail2ban openssl python3 jq
+apt-get install -y -qq curl wget tar xz-utils ufw fail2ban openssl python3 jq python3-bcrypt iptables-persistent
 echo -e "${GREEN}      Done${NC}"
 
 # ── STEP 2 — Download shadowsocks-rust ───────────
-echo -e "${YELLOW}[2/7] Downloading shadowsocks-rust v${SS_VERSION}...${NC}"
+echo -e "${YELLOW}[2/9] Downloading shadowsocks-rust v${SS_VERSION}...${NC}"
 
 ARCH=$(uname -m)
 case "$ARCH" in
@@ -70,7 +73,7 @@ rm -f /tmp/ss.tar.xz /tmp/ssserver /tmp/sslocal /tmp/ssurl /tmp/ssmanager 2>/dev
 echo -e "${GREEN}      Installed: $SS_BIN${NC}"
 
 # ── STEP 3 — shadowsocks initial config ──────────
-echo -e "${YELLOW}[3/7] Writing shadowsocks config...${NC}"
+echo -e "${YELLOW}[3/9] Writing shadowsocks config...${NC}"
 
 mkdir -p "$SS_DIR"
 cat > "$SS_DIR/config.json" << 'EOF'
@@ -81,36 +84,165 @@ EOF
 echo -e "${GREEN}      Done${NC}"
 
 # ── STEP 4 — BBR + kernel tuning ─────────────────
-echo -e "${YELLOW}[4/7] Enabling BBR + kernel tuning...${NC}"
+echo -e "${YELLOW}[4/9] Enabling BBR + enhanced kernel tuning...${NC}"
 
-sed -i '/net.core.default_qdisc/d;/net.ipv4.tcp_congestion_control/d;/net.core.rmem_max/d;/net.core.wmem_max/d;/net.ipv4.tcp_rmem/d;/net.ipv4.tcp_wmem/d;/net.ipv4.tcp_mtu_probing/d;/net.ipv4.tcp_fastopen/d' /etc/sysctl.conf
+sed -i '/net.core.default_qdisc/d
+/net.ipv4.tcp_congestion_control/d
+/net.core.rmem_max/d
+/net.core.wmem_max/d
+/net.ipv4.tcp_rmem/d
+/net.ipv4.tcp_wmem/d
+/net.ipv4.tcp_mtu_probing/d
+/net.ipv4.tcp_fastopen/d
+/net.core.netdev_max_backlog/d
+/net.core.somaxconn/d
+/net.ipv4.tcp_max_syn_backlog/d
+/net.ipv4.ip_local_port_range/d
+/net.ipv4.tcp_tw_reuse/d
+/net.ipv4.tcp_fin_timeout/d
+/net.ipv4.tcp_keepalive_time/d
+/net.ipv4.tcp_keepalive_intvl/d
+/net.ipv4.tcp_keepalive_probes/d' /etc/sysctl.conf
 
-cat >> /etc/sysctl.conf << EOF
+cat >> /etc/sysctl.conf << 'EOF'
+# ── VPN server: BBR + high bandwidth + low latency ──
 net.core.default_qdisc=fq
 net.ipv4.tcp_congestion_control=bbr
+# Large socket buffers for high-throughput
 net.core.rmem_max=134217728
 net.core.wmem_max=134217728
 net.ipv4.tcp_rmem=4096 87380 67108864
 net.ipv4.tcp_wmem=4096 65536 67108864
 net.ipv4.tcp_mtu_probing=1
+# TCP fast open for both client and server
 net.ipv4.tcp_fastopen=3
+# Connection queue depth
+net.core.netdev_max_backlog=250000
+net.core.somaxconn=65535
+net.ipv4.tcp_max_syn_backlog=65535
+# Port reuse + faster connection teardown
+net.ipv4.ip_local_port_range=1024 65535
+net.ipv4.tcp_tw_reuse=1
+net.ipv4.tcp_fin_timeout=10
+# Keepalive tuning
+net.ipv4.tcp_keepalive_time=60
+net.ipv4.tcp_keepalive_intvl=10
+net.ipv4.tcp_keepalive_probes=6
 EOF
 
 sysctl -p > /dev/null 2>&1
 echo -e "${GREEN}      BBR: $(sysctl -n net.ipv4.tcp_congestion_control)${NC}"
 
-# ── STEP 5 — UFW firewall ─────────────────────────
-echo -e "${YELLOW}[5/7] Configuring firewall...${NC}"
+# ── STEP 5 — AdGuard Home ────────────────────────
+echo -e "${YELLOW}[5/9] Installing AdGuard Home v${AGH_VERSION}...${NC}"
+
+case "$ARCH" in
+    x86_64)  AGH_ARCH="amd64" ;;
+    aarch64) AGH_ARCH="arm64" ;;
+    armv7l)  AGH_ARCH="armv7" ;;
+    *)       AGH_ARCH="amd64" ;;
+esac
+
+AGH_URL="https://github.com/AdguardTeam/AdGuardHome/releases/download/v${AGH_VERSION}/AdGuardHome_linux_${AGH_ARCH}.tar.gz"
+wget -q --show-progress "$AGH_URL" -O /tmp/agh.tar.gz
+tar -xzf /tmp/agh.tar.gz -C /tmp/
+cp /tmp/AdGuardHome/AdGuardHome "$AGH_BIN"
+chmod +x "$AGH_BIN"
+rm -rf /tmp/agh.tar.gz /tmp/AdGuardHome
+echo -e "${GREEN}      Installed: $AGH_BIN${NC}"
+
+# Free port 53 from systemd-resolved stub listener
+mkdir -p /etc/systemd/resolved.conf.d
+cat > /etc/systemd/resolved.conf.d/no-stub.conf << 'EOF'
+[Resolve]
+DNSStubListener=no
+EOF
+systemctl restart systemd-resolved 2>/dev/null || true
+
+# Generate AdGuard admin password
+AGH_PASSWORD=$(openssl rand -base64 12)
+AGH_HASH=$(python3 -c "import bcrypt; print(bcrypt.hashpw('${AGH_PASSWORD}'.encode(), bcrypt.gensalt(10)).decode())")
+
+mkdir -p "$AGH_DIR"
+cat > "$AGH_DIR/AdGuardHome.yaml" << 'YAML_EOF'
+http:
+  address: 127.0.0.1:3000
+users:
+  - name: admin
+    password: "HASH_PLACEHOLDER"
+dns:
+  bind_hosts:
+    - 0.0.0.0
+  port: 53
+  upstream_dns:
+    - https://dns.google/dns-query
+    - https://cloudflare-dns.com/dns-query
+  bootstrap_dns:
+    - 8.8.8.8
+    - 1.1.1.1
+  filtering_enabled: true
+  filters_update_interval: 24
+filters:
+  - enabled: true
+    url: https://adguardteam.github.io/AdGuardSDNSFilter/Filters/filter.txt
+    name: AdGuard DNS filter
+    id: 1
+  - enabled: true
+    url: https://adguardteam.github.io/HostlistsRegistry/assets/filter_9.txt
+    name: Malware & Phishing
+    id: 2
+schema_version: 28
+YAML_EOF
+
+sed -i "s|HASH_PLACEHOLDER|${AGH_HASH}|" "$AGH_DIR/AdGuardHome.yaml"
+
+cat > /etc/systemd/system/adguardhome.service << EOF
+[Unit]
+Description=AdGuard Home DNS
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+ExecStart=${AGH_BIN} --no-check-update -c ${AGH_DIR}/AdGuardHome.yaml -h ${AGH_DIR} --work-dir ${AGH_DIR}
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+# NOT enabled or started — agent controls it based on adguard_enabled flag
+echo -e "${GREEN}      AdGuard Home ready (controlled by admin toggle)${NC}"
+echo -e "${GREEN}      Admin URL : http://127.0.0.1:3000  (SSH forward to access)${NC}"
+echo -e "${GREEN}      Password  : ${AGH_PASSWORD}${NC}"
+
+# ── STEP 6 — UFW + bot blocking ──────────────────
+echo -e "${YELLOW}[6/9] Configuring firewall + bot blocking...${NC}"
+
 ufw allow ssh             > /dev/null 2>&1
 ufw allow 80/tcp          > /dev/null 2>&1
 ufw allow 443/tcp         > /dev/null 2>&1
+ufw allow 53/tcp          > /dev/null 2>&1
+ufw allow 53/udp          > /dev/null 2>&1
 ufw allow 20000:29999/tcp > /dev/null 2>&1
 ufw allow 20000:29999/udp > /dev/null 2>&1
 echo "y" | ufw enable     > /dev/null 2>&1
-echo -e "${GREEN}      Ports 443, 20000-29999 open${NC}"
 
-# ── STEP 6 — shadowsocks systemd ─────────────────
-echo -e "${YELLOW}[6/7] Creating shadowsocks service...${NC}"
+# Rate-limit new TCP connections to VPN ports: max 15 new per IP per minute
+# Saves iptables rules so they survive reboot (iptables-persistent)
+iptables -A INPUT -p tcp --dport 20000:29999 -m state --state NEW \
+    -m recent --name vpn_ratelimit --set 2>/dev/null || true
+iptables -A INPUT -p tcp --dport 20000:29999 -m state --state NEW \
+    -m recent --name vpn_ratelimit --update --seconds 60 --hitcount 15 -j DROP 2>/dev/null || true
+netfilter-persistent save > /dev/null 2>&1 || true
+
+echo -e "${GREEN}      Firewall active, bot rate-limit applied${NC}"
+
+# ── STEP 7 — shadowsocks systemd ─────────────────
+echo -e "${YELLOW}[7/9] Creating shadowsocks service...${NC}"
 
 touch "$SS_LOG"
 
@@ -141,14 +273,14 @@ sleep 2
 SS_STATUS=$(systemctl is-active shadowsocks)
 echo -e "${GREEN}      Shadowsocks: $SS_STATUS${NC}"
 
-# ── STEP 7 — Install VPN agent ────────────────────
-echo -e "${YELLOW}[7/7] Installing VPN agent...${NC}"
+# ── STEP 8 — Install VPN agent ───────────────────
+echo -e "${YELLOW}[8/9] Installing VPN agent...${NC}"
 
 cat > /usr/local/bin/vpn-agent.sh << 'AGENT_EOF'
 #!/bin/bash
 # ================================================
-#  VPN Agent — runs on each Contabo Ubuntu server
-#  Syncs users + reports traffic via iptables
+#  VPN Agent — runs on each VPN server
+#  Syncs users, reports traffic, watchdog, AdGuard
 # ================================================
 
 API_BASE="REPLACE_WITH_API_BASE/api/agent"
@@ -208,7 +340,7 @@ sync_users() {
     local config
     config=$(api_get "/config/${SERVER_ID}") || { echo "[sync] Failed to fetch config"; return 1; }
 
-    # Write shadowsocks multi-port config
+    # Write shadowsocks multi-port config with low-latency options
     echo "$config" | python3 -c "
 import sys, json
 entries = json.load(sys.stdin)
@@ -220,7 +352,8 @@ for e in entries:
         'password': e['password'],
         'method': e['method'],
         'mode': 'tcp_and_udp',
-        'fast_open': True
+        'fast_open': True,
+        'no_delay': True
     })
 print(json.dumps({'servers': servers}, indent=4))
 " > "$SS_CONFIG"
@@ -286,7 +419,7 @@ PYEOF
 
     if [[ -n "$payload" && "$payload" != "[]" ]]; then
         api_post "/traffic/${SERVER_ID}" "$payload" > /dev/null
-        # Reset iptables counters after reporting
+        # Reset counters after reporting
         iptables -Z VPN_IN  2>/dev/null || true
         iptables -Z VPN_OUT 2>/dev/null || true
         echo "[traffic] Reported: $payload"
@@ -297,14 +430,36 @@ PYEOF
 echo "[agent] Starting VPN agent for server ${SERVER_ID}"
 
 while true; do
+    # ── Heartbeat ─────────────────────────────────
     response=$(api_post "/heartbeat/${SERVER_ID}" "{}")
-    sync_required=$(echo "$response" | python3 -c "import sys,json; print(json.load(sys.stdin).get('sync_required', False))" 2>/dev/null)
 
+    sync_required=$(echo "$response" | python3 -c "import sys,json; print(json.load(sys.stdin).get('sync_required', False))" 2>/dev/null)
+    adguard_enabled=$(echo "$response" | python3 -c "import sys,json; print(json.load(sys.stdin).get('adguard_enabled', False))" 2>/dev/null)
+
+    # ── Sync users if needed ───────────────────────
     if [[ "$sync_required" == "True" ]]; then
         sync_users
     fi
 
+    # ── Watchdog: restart shadowsocks if down ──────
+    if ! systemctl is-active --quiet shadowsocks; then
+        echo "[watchdog] Shadowsocks is down — restarting"
+        systemctl restart shadowsocks
+        sleep 2
+        setup_accounting
+        echo "[watchdog] Shadowsocks restarted"
+    fi
+
+    # ── AdGuard Home control ───────────────────────
+    if [[ "$adguard_enabled" == "True" ]]; then
+        systemctl is-active --quiet adguardhome || { echo "[adguard] Starting AdGuard Home"; systemctl start adguardhome; }
+    else
+        systemctl is-active --quiet adguardhome && { echo "[adguard] Stopping AdGuard Home"; systemctl stop adguardhome; }
+    fi
+
+    # ── Report traffic ─────────────────────────────
     report_traffic
+
     sleep "$CYCLE_SECONDS"
 done
 AGENT_EOF
@@ -339,7 +494,9 @@ sleep 2
 AGENT_STATUS=$(systemctl is-active vpn-agent)
 echo -e "${GREEN}      Agent: $AGENT_STATUS${NC}"
 
-# ── fail2ban ──────────────────────────────────────
+# ── STEP 9 — fail2ban ────────────────────────────
+echo -e "${YELLOW}[9/9] Configuring fail2ban...${NC}"
+
 cat > /etc/fail2ban/filter.d/shadowsocks.conf << 'EOF'
 [Definition]
 failregex = tcp handshake failed. peer: <HOST>:
@@ -360,19 +517,25 @@ EOF
 systemctl enable fail2ban > /dev/null 2>&1
 systemctl restart fail2ban
 
-# ── Summary ───────────────────────────────────────
+# ── Summary ──────────────────────────────────────
 echo ""
 echo -e "${CYAN}================================================${NC}"
 echo -e "${CYAN}  SETUP COMPLETE${NC}"
 echo -e "${CYAN}================================================${NC}"
 echo ""
-echo -e "  Server ID  : ${GREEN}$SERVER_ID${NC}"
-echo -e "  API Base   : ${GREEN}$API_BASE${NC}"
-echo -e "  Shadowsocks: ${GREEN}$SS_STATUS${NC}"
-echo -e "  Agent      : ${GREEN}$AGENT_STATUS${NC}"
+echo -e "  Server ID    : ${GREEN}$SERVER_ID${NC}"
+echo -e "  API Base     : ${GREEN}$API_BASE${NC}"
+echo -e "  Shadowsocks  : ${GREEN}$SS_STATUS${NC}"
+echo -e "  Agent        : ${GREEN}$AGENT_STATUS${NC}"
+echo -e "  AdGuard Home : ${YELLOW}Installed (enable via admin toggle)${NC}"
+echo -e "  AdGuard URL  : ${YELLOW}http://127.0.0.1:3000 (SSH forward)${NC}"
+echo -e "  AdGuard Pass : ${YELLOW}${AGH_PASSWORD}${NC}"
 echo ""
 echo -e "  Useful commands:"
-echo -e "    journalctl -u vpn-agent -f       # Agent logs"
-echo -e "    journalctl -u shadowsocks -f     # SS logs"
+echo -e "    journalctl -u vpn-agent -f         # Agent logs"
+echo -e "    journalctl -u shadowsocks -f       # SS logs"
+echo -e "    journalctl -u adguardhome -f       # AdGuard logs"
 echo -e "    systemctl status vpn-agent"
+echo -e "    # SSH forward for AdGuard UI:"
+echo -e "    ssh -L 3000:127.0.0.1:3000 root@<server-ip>"
 echo ""

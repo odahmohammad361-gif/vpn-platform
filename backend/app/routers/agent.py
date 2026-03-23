@@ -100,7 +100,7 @@ async def heartbeat(
         )
     )
     sync_required = result.scalar_one_or_none() is not None
-    return {"sync_required": sync_required}
+    return {"sync_required": sync_required, "adguard_enabled": server.adguard_enabled}
 
 
 @router.post("/sync-ack/{server_id}")

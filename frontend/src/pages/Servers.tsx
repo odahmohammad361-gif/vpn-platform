@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, Wifi, WifiOff, Activity, Copy } from "lucide-react";
+import { Plus, Trash2, Wifi, WifiOff, Activity, Copy, Shield, ShieldOff } from "lucide-react";
 import api from "@/lib/api";
 
 export default function Servers() {
@@ -21,6 +21,12 @@ export default function Servers() {
 
   const deleteServer = useMutation({
     mutationFn: (id: string) => api.delete(`/servers/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["servers"] }),
+  });
+
+  const toggleAdguard = useMutation({
+    mutationFn: ({ id, enabled }: { id: string; enabled: boolean }) =>
+      api.post(`/servers/${id}/adguard?enabled=${enabled}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["servers"] }),
   });
 
@@ -115,10 +121,23 @@ export default function Servers() {
                 </div>
 
                 {/* Actions */}
-                <button onClick={() => { if (confirm(`Delete server ${s.name}?`)) deleteServer.mutate(s.id); }}
-                  className="p-2 rounded-xl bg-white/5 hover:bg-red-500/20 hover:text-red-400 text-gray-600 transition">
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    title={s.adguard_enabled ? "AdGuard ON — click to disable" : "AdGuard OFF — click to enable"}
+                    onClick={() => toggleAdguard.mutate({ id: s.id, enabled: !s.adguard_enabled })}
+                    className={`p-2 rounded-xl border transition ${
+                      s.adguard_enabled
+                        ? "bg-green-500/10 border-green-500/20 text-green-400 hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-400"
+                        : "bg-white/5 border-white/10 text-gray-600 hover:bg-green-500/10 hover:border-green-500/20 hover:text-green-400"
+                    }`}
+                  >
+                    {s.adguard_enabled ? <Shield className="w-4 h-4" /> : <ShieldOff className="w-4 h-4" />}
+                  </button>
+                  <button onClick={() => { if (confirm(`Delete server ${s.name}?`)) deleteServer.mutate(s.id); }}
+                    className="p-2 rounded-xl bg-white/5 hover:bg-red-500/20 hover:text-red-400 text-gray-600 transition">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
 
               {/* IDs for agent install */}

@@ -82,3 +82,13 @@ async def delete_server(server_id: uuid.UUID, db: AsyncSession = Depends(get_db)
         raise HTTPException(404, "Server not found")
     await db.delete(server)
     await db.commit()
+
+
+@router.post("/{server_id}/adguard")
+async def toggle_adguard(server_id: uuid.UUID, enabled: bool, db: AsyncSession = Depends(get_db)):
+    server = await db.get(Server, server_id)
+    if not server:
+        raise HTTPException(404, "Server not found")
+    server.adguard_enabled = enabled
+    await db.commit()
+    return {"adguard_enabled": server.adguard_enabled}
