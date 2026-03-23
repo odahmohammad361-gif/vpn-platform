@@ -7,7 +7,7 @@ from fastapi import Depends
 from app.database import get_db
 from app.models.user import User, UserServer
 from app.models.server import Server
-from app.services.subscription import build_shadowrocket, build_clash, build_v2rayng
+from app.services.subscription import build_shadowrocket, build_clash, build_v2rayng, build_surge_conf
 
 router = APIRouter(prefix="/sub", tags=["subscription"])
 
@@ -49,6 +49,8 @@ def _respond(slots: list[dict], format: str, user: User | None = None):
         resp = Response(content=build_clash(slots), media_type="text/yaml")
     elif format == "v2rayng":
         resp = PlainTextResponse(build_v2rayng(slots))
+    elif format == "surge":
+        resp = PlainTextResponse(build_surge_conf(slots), media_type="text/plain")
     else:
         resp = PlainTextResponse(build_shadowrocket(slots))
     if user:

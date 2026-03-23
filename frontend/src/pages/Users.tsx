@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { UserPlus, Trash2, Ban, CheckCircle, RefreshCw, Copy, Check, ServerIcon, X, Package } from "lucide-react";
+import { UserPlus, Trash2, Ban, CheckCircle, RefreshCw, Copy, Check, ServerIcon, X, Package, Link } from "lucide-react";
 import api from "@/lib/api";
 
 function formatBytes(b: number) {
@@ -161,13 +161,71 @@ function AssignModal({ user, servers, onClose }: { user: any; servers: any[]; on
   );
 }
 
+function SubModal({ user, onClose }: { user: any; onClose: () => void }) {
+  const [copied, setCopied] = useState<string | null>(null);
+  const { data: urls } = useQuery({
+    queryKey: ["sub-urls", user.id],
+    queryFn: () => api.get(`/users/${user.id}/subscription`).then((r) => r.data),
+  });
+
+  const copy = (key: string, value: string) => {
+    navigator.clipboard.writeText(value);
+    setCopied(key);
+    setTimeout(() => setCopied(null), 2000);
+  };
+
+  const rows: { key: string; label: string; note?: string }[] = [
+    { key: "shadowrocket", label: "Shadowrocket" },
+    { key: "clash", label: "Clash" },
+    { key: "v2rayng", label: "v2rayNG" },
+    { key: "surge", label: "Shadowrocket + AdGuard DNS", note: "Sets DNS to VPN server — routes through AdGuard Home" },
+  ];
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="glass rounded-2xl p-6 w-full max-w-lg mx-4">
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h2 className="text-white font-semibold">Subscription URLs</h2>
+            <p className="text-gray-500 text-sm mt-0.5">{user.username}</p>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-xl hover:bg-white/10 text-gray-500 transition">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="space-y-3">
+          {rows.map(({ key, label, note }) => (
+            <div key={key} className="p-3 rounded-xl bg-white/5 border border-white/10">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-gray-300 text-xs font-semibold uppercase tracking-wide">{label}</span>
+                <button
+                  onClick={() => urls?.[key] && copy(key, urls[key])}
+                  disabled={!urls}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-blue-500/20 hover:text-blue-400 text-gray-400 text-xs transition"
+                >
+                  {copied === key ? <Check className="w-3 h-3 text-green-400" /> : <Copy className="w-3 h-3" />}
+                  {copied === key ? "Copied" : "Copy"}
+                </button>
+              </div>
+              {urls?.[key] && (
+                <p className="text-gray-600 text-xs font-mono mt-1.5 truncate">{urls[key]}</p>
+              )}
+              {note && <p className="text-blue-400/70 text-xs mt-1">{note}</p>}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Users() {
   const qc = useQueryClient();
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({ username: "", email: "", quota_gb: 0 });
-  const [copied, setCopied] = useState<string | null>(null);
   const [assigningUser, setAssigningUser] = useState<any>(null);
   const [planUser, setPlanUser] = useState<any>(null);
+  const [subUser, setSubUser] = useState<any>(null);
 
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["users"],
@@ -207,18 +265,12 @@ export default function Users() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["users"] }),
   });
 
-  const copySubUrl = (token: string, id: string) => {
-    const url = `http://${window.location.hostname}:8080/sub/${token}`;
-    navigator.clipboard.writeText(url);
-    setCopied(id);
-    setTimeout(() => setCopied(null), 2000);
-  };
-
   const inputClass = "w-full px-4 py-2.5 rounded-xl bg-white/5 text-white border border-white/10 focus:outline-none focus:border-blue-500/60 transition placeholder-gray-600 text-sm";
 
   return (
     <div className="space-y-6">
       {planUser && <PlanModal user={planUser} onClose={() => setPlanUser(null)} />}
+      {subUser && <SubModal user={subUser} onClose={() => setSubUser(null)} />}
       {assigningUser && (
         <AssignModal user={assigningUser} servers={servers} onClose={() => setAssigningUser(null)} />
       )}
@@ -312,9 +364,9 @@ export default function Users() {
                       className="p-2 rounded-lg bg-white/5 hover:bg-purple-500/20 hover:text-purple-400 text-gray-500 transition">
                       <ServerIcon className="w-3.5 h-3.5" />
                     </button>
-                    <button title="Copy subscription URL" onClick={() => copySubUrl(u.subscription_token, u.id)}
+                    <button title="Subscription URLs" onClick={() => setSubUser(u)}
                       className="p-2 rounded-lg bg-white/5 hover:bg-blue-500/20 hover:text-blue-400 text-gray-500 transition">
-                      {copied === u.id ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
+                      <Link className="w-3.5 h-3.5" />
                     </button>
                     <button title={u.is_active ? "Disable" : "Enable"}
                       onClick={() => toggleUser.mutate({ id: u.id, active: u.is_active })}
