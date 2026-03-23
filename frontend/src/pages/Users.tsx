@@ -181,8 +181,13 @@ export default function Users() {
   });
 
   const createUser = useMutation({
-    mutationFn: ({ quota_gb, ...rest }: any) => api.post("/users", { ...rest, quota_bytes: Math.round(quota_gb * 1e9) }),
+    mutationFn: ({ quota_gb, email, ...rest }: any) => api.post("/users", {
+      ...rest,
+      email: email || null,
+      quota_bytes: Math.round(quota_gb * 1e9),
+    }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["users"] }); setCreating(false); setForm({ username: "", email: "", quota_gb: 0 }); },
+    onError: (e: any) => alert(e?.response?.data?.detail ?? "Failed to create user."),
   });
 
   const toggleUser = useMutation({
