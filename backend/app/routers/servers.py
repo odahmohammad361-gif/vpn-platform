@@ -2,12 +2,13 @@ import uuid
 import secrets
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from pydantic import BaseModel, field_validator, model_validator
 from typing import Optional
 from app.database import get_db
 from app.dependencies import get_current_admin
 from app.models.server import Server
+from app.models.traffic import DailyTraffic
 
 router = APIRouter(prefix="/servers", tags=["servers"], dependencies=[Depends(get_current_admin)])
 
@@ -80,6 +81,7 @@ async def delete_server(server_id: uuid.UUID, db: AsyncSession = Depends(get_db)
     server = await db.get(Server, server_id)
     if not server:
         raise HTTPException(404, "Server not found")
+    await db.execute(delete(DailyTraffic).where(DailyTraffic.server_id == server_id))
     await db.delete(server)
     await db.commit()
 
