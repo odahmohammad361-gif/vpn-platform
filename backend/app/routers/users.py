@@ -4,7 +4,7 @@ import calendar
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, text, delete, update
+from sqlalchemy import select, text, delete, update, func
 from pydantic import BaseModel, field_validator, model_validator
 from typing import Optional
 from app.database import get_db
@@ -48,7 +48,7 @@ async def list_users(
     search: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
 ):
-    q = select(User)
+    q = select(User).where(User.deleted_at == None)
     if active is not None:
         q = q.where(User.is_active == active)
     if search:
@@ -70,7 +70,7 @@ async def create_user(body: UserCreate, db: AsyncSession = Depends(get_db)):
 @router.get("/{user_id}")
 async def get_user(user_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     user = await db.get(User, user_id)
-    if not user:
+    if not user or user.deleted_at is not None:
         raise HTTPException(404, "User not found")
     return user
 
@@ -92,19 +92,17 @@ async def delete_user(user_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     user = await db.get(User, user_id)
     if not user:
         raise HTTPException(404, "User not found")
-    # Mark affected servers for re-sync so deleted user's port is removed
+    # Soft delete — keep all traffic data, just hide the user and remove from servers
+    user.deleted_at = datetime.now(timezone.utc)
+    user.is_active = False
+    user.disabled_reason = "deleted"
+    # Force re-sync so agent removes this user's port from shadowsocks
     affected = await db.execute(select(UserServer.server_id).where(UserServer.user_id == user_id))
     server_ids = affected.scalars().all()
     if server_ids:
         await db.execute(
             update(Server).where(Server.id.in_(server_ids)).values(force_sync=True)
         )
-    # Explicit deletion in FK-safe order (async ORM can't auto-cascade)
-    user_server_ids = select(UserServer.id).where(UserServer.user_id == user_id)
-    await db.execute(delete(TrafficLog).where(TrafficLog.user_server_id.in_(user_server_ids)))
-    await db.execute(delete(DailyTraffic).where(DailyTraffic.user_id == user_id))
-    await db.execute(delete(UserServer).where(UserServer.user_id == user_id))
-    await db.delete(user)
     await db.commit()
 
 
@@ -154,17 +152,29 @@ async def assign_server(user_id: uuid.UUID, server_id: uuid.UUID, db: AsyncSessi
     if not user or not server:
         raise HTTPException(404, "User or Server not found")
 
-    # Allocate next free port — lock rows to prevent race condition
+    # Lock port rows to prevent race conditions
     used_ports = await db.execute(
         select(UserServer.port).where(UserServer.server_id == server_id).with_for_update()
     )
     taken = set(used_ports.scalars().all())
-    free_port = next(
-        (p for p in range(server.port_range_start, server.port_range_end + 1) if p not in taken),
-        None
+
+    # Use the same port this user already has on another server (consistency across servers)
+    existing_port_result = await db.execute(
+        select(UserServer.port).where(UserServer.user_id == user_id).limit(1)
     )
-    if free_port is None:
-        raise HTTPException(409, "No free ports on this server")
+    preferred_port = existing_port_result.scalar_one_or_none()
+
+    if preferred_port and preferred_port not in taken:
+        free_port = preferred_port
+    else:
+        # Always use max+1 — never reuse a port that was previously assigned
+        max_port_result = await db.execute(
+            select(func.max(UserServer.port)).where(UserServer.server_id == server_id)
+        )
+        max_port = max_port_result.scalar() or (server.port_range_start - 1)
+        free_port = max_port + 1
+        if free_port > server.port_range_end:
+            raise HTTPException(409, "No free ports on this server")
 
     slot = UserServer(
         user_id=user_id,

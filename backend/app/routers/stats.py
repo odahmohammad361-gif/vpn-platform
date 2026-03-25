@@ -13,8 +13,8 @@ router = APIRouter(prefix="/stats", tags=["stats"], dependencies=[Depends(get_cu
 
 @router.get("/overview")
 async def overview(db: AsyncSession = Depends(get_db)):
-    total_users = (await db.execute(select(func.count(User.id)))).scalar()
-    active_users = (await db.execute(select(func.count(User.id)).where(User.is_active == True))).scalar()
+    total_users = (await db.execute(select(func.count(User.id)).where(User.deleted_at == None))).scalar()
+    active_users = (await db.execute(select(func.count(User.id)).where(User.is_active == True, User.deleted_at == None))).scalar()
     total_servers = (await db.execute(select(func.count(Server.id)))).scalar()
 
     today = datetime.utcnow().date()
