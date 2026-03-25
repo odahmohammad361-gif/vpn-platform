@@ -156,7 +156,7 @@ export default function Servers() {
                 <div>
                   <p className="text-gray-600 text-xs mb-1">Server ID</p>
                   <div className="flex items-center gap-2">
-                    <p className="text-gray-500 font-mono text-xs truncate">{s.id}</p>
+                    <p className="text-gray-500 font-mono text-xs break-all">{s.id}</p>
                     <button onClick={() => navigator.clipboard.writeText(s.id)}
                       className="shrink-0 p-1 rounded hover:bg-white/10 text-gray-600 hover:text-gray-300 transition">
                       <Copy className="w-3 h-3" />
@@ -166,7 +166,7 @@ export default function Servers() {
                 <div>
                   <p className="text-gray-600 text-xs mb-1">Agent Secret</p>
                   <div className="flex items-center gap-2">
-                    <p className="text-gray-500 font-mono text-xs truncate">{s.agent_secret}</p>
+                    <p className="text-gray-500 font-mono text-xs break-all">{s.agent_secret}</p>
                     <button onClick={() => navigator.clipboard.writeText(s.agent_secret)}
                       className="shrink-0 p-1 rounded hover:bg-white/10 text-gray-600 hover:text-gray-300 transition">
                       <Copy className="w-3 h-3" />
