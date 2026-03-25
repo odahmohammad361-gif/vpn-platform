@@ -158,11 +158,13 @@ async def assign_server(user_id: uuid.UUID, server_id: uuid.UUID, db: AsyncSessi
     )
     taken = set(used_ports.scalars().all())
 
-    # Use the same port this user already has on another server (consistency across servers)
-    existing_port_result = await db.execute(
-        select(UserServer.port).where(UserServer.user_id == user_id).limit(1)
+    # Use the same port+password this user already has on another server
+    existing_slot_result = await db.execute(
+        select(UserServer.port, UserServer.password).where(UserServer.user_id == user_id).limit(1)
     )
-    preferred_port = existing_port_result.scalar_one_or_none()
+    existing_slot = existing_slot_result.first()
+    preferred_port = existing_slot.port if existing_slot else None
+    shared_password = existing_slot.password if existing_slot else secrets.token_hex(16)
 
     if preferred_port and preferred_port not in taken:
         free_port = preferred_port
@@ -180,7 +182,7 @@ async def assign_server(user_id: uuid.UUID, server_id: uuid.UUID, db: AsyncSessi
         user_id=user_id,
         server_id=server_id,
         port=free_port,
-        password=secrets.token_hex(16),
+        password=shared_password,
     )
     db.add(slot)
     await db.commit()
