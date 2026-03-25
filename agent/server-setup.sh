@@ -374,6 +374,8 @@ entries = json.load(sys.stdin)
 print(json.dumps({str(e['port']): str(e['user_server_id']) for e in entries}))
 " > "$PORT_MAP"
 
+    # Flush accumulated traffic before resetting iptables chains
+    report_traffic
     systemctl restart shadowsocks
     setup_accounting
     echo "[sync] Config written with $(echo "$config" | python3 -c "import sys,json; print(len(json.load(sys.stdin)))" 2>/dev/null) user(s)"
@@ -457,6 +459,7 @@ while true; do
     server_count=$(python3 -c "import json; d=json.load(open('$SS_CONFIG')); print(len(d.get('servers', [])))" 2>/dev/null || echo 0)
     if [[ "$server_count" -gt 0 ]] && ! systemctl is-active --quiet shadowsocks; then
         echo "[watchdog] Shadowsocks is down — restarting"
+        report_traffic
         systemctl restart shadowsocks
         sleep 2
         setup_accounting
