@@ -1,16 +1,15 @@
 #!/bin/bash
 # ================================================
-#  VPN Agent — runs on each Contabo Ubuntu server
-#  Syncs users with admin API + reports traffic
+#  VPN Agent — runs on each VPN server
+#  Syncs users, reports traffic, watchdog, AdGuard
 # ================================================
 
 API_BASE="REPLACE_WITH_API_BASE/api/agent"
 SERVER_ID="REPLACE_WITH_SERVER_UUID"
 AGENT_SECRET="REPLACE_WITH_AGENT_SECRET"
-MANAGER_SOCK="/var/run/shadowsocks-manager.sock"
 SS_CONFIG="/etc/shadowsocks/config.json"
+PORT_MAP="/tmp/vpn_port_map.json"
 CYCLE_SECONDS=30
-STATE_FILE="/tmp/ss_traffic_state.json"
 
 # ── HMAC signature ────────────────────────────────
 sign_request() {
@@ -31,7 +30,7 @@ api_get() {
 
 api_post() {
     local path="$1"
-    local body="${2:-{}}"
+    local body="${2:-}"
     read -r ts sig <<< "$(sign_request "$body")"
     curl -sfk -X POST "${API_BASE}${path}" \
         -H "Content-Type: application/json" \
@@ -41,136 +40,153 @@ api_post() {
         -d "$body"
 }
 
-# ── Manager socket helpers ────────────────────────
-manager_cmd() {
-    echo -n "$1" | nc -u -w1 -U "$MANAGER_SOCK" 2>/dev/null || true
+# ── iptables accounting per port ──────────────────
+setup_accounting() {
+    iptables -N VPN_IN  2>/dev/null || iptables -F VPN_IN
+    iptables -N VPN_OUT 2>/dev/null || iptables -F VPN_OUT
+    iptables -C INPUT  -j VPN_IN  2>/dev/null || iptables -I INPUT  -j VPN_IN
+    iptables -C OUTPUT -j VPN_OUT 2>/dev/null || iptables -I OUTPUT -j VPN_OUT
+
+    while IFS= read -r port; do
+        [[ -z "$port" ]] && continue
+        iptables -A VPN_IN  -p tcp --dport "$port"
+        iptables -A VPN_IN  -p udp --dport "$port"
+        iptables -A VPN_OUT -p tcp --sport "$port"
+        iptables -A VPN_OUT -p udp --sport "$port"
+    done < <(python3 -c "import json,sys; [print(p) for p in json.load(open('$PORT_MAP')).keys()]" 2>/dev/null)
 }
 
-get_stats() {
-    manager_cmd "stat:" | grep -oP '\{.*\}' || echo "{}"
-}
-
-add_port() {
-    local port="$1" pass="$2" method="$3"
-    manager_cmd "add:{\"server_port\":${port},\"password\":\"${pass}\",\"method\":\"${method}\"}"
-}
-
-remove_port() {
-    local port="$1"
-    manager_cmd "remove:{\"server_port\":${port}}"
-}
-
-# ── Sync users from API ───────────────────────────
+# ── Sync users — write config + restart ssserver ──
 sync_users() {
     local config
-    config=$(api_get "/config/${SERVER_ID}") || return 1
+    config=$(api_get "/config/${SERVER_ID}") || { echo "[sync] Failed to fetch config"; return 1; }
 
-    # Get current active ports from manager
-    local current_stats
-    current_stats=$(get_stats)
-    local current_ports
-    current_ports=$(echo "$current_stats" | python3 -c "import sys,json; d=json.load(sys.stdin); print(' '.join(str(k) for k in d.keys()))" 2>/dev/null || echo "")
-
-    # Parse desired config
-    local desired_ports
-    desired_ports=$(echo "$config" | python3 -c "
-import sys, json
-entries = json.load(sys.stdin)
-for e in entries:
-    print(e['port'], e['password'], e['method'])
-" 2>/dev/null)
-
-    local new_ports=""
-    while IFS=' ' read -r port pass method; do
-        [[ -z "$port" ]] && continue
-        new_ports="$new_ports $port"
-        if ! echo "$current_ports" | grep -qw "$port"; then
-            add_port "$port" "$pass" "$method"
-            echo "[sync] Added port $port"
-        fi
-    done <<< "$desired_ports"
-
-    # Remove ports no longer in config
-    for port in $current_ports; do
-        if ! echo "$new_ports" | grep -qw "$port"; then
-            remove_port "$port"
-            echo "[sync] Removed port $port"
-        fi
-    done
-
-    # Rewrite config file for persistence across restarts
+    # Write shadowsocks multi-port config with low-latency options
     echo "$config" | python3 -c "
 import sys, json
 entries = json.load(sys.stdin)
-cfg = {
-    'server': '0.0.0.0',
-    'server_port': entries[0]['port'] if entries else 443,
-    'password': entries[0]['password'] if entries else '',
-    'method': entries[0]['method'] if entries else 'chacha20-ietf-poly1305',
-    'timeout': 300,
-    'mode': 'tcp_and_udp',
-    'fast_open': False,
-    'mtu': 1400,
-    'ipv6_first': False
-}
-print(json.dumps(cfg, indent=4))
-" > "$SS_CONFIG" 2>/dev/null
+servers = []
+for e in entries:
+    servers.append({
+        'server': '0.0.0.0',
+        'server_port': e['port'],
+        'password': e['password'],
+        'method': e['method'],
+        'mode': 'tcp_and_udp',
+        'fast_open': False,
+        'no_delay': True,
+        'mtu': 1400
+    })
+print(json.dumps({'servers': servers}, indent=4))
+" > "$SS_CONFIG"
+
+    # Save port → user_server_id map for traffic reporting
+    echo "$config" | python3 -c "
+import sys, json
+entries = json.load(sys.stdin)
+print(json.dumps({str(e['port']): str(e['user_server_id']) for e in entries}))
+" > "$PORT_MAP"
+
+    # Flush accumulated traffic before resetting iptables chains
+    report_traffic
+    systemctl restart shadowsocks
+    setup_accounting
+    echo "[sync] Config written with $(echo "$config" | python3 -c "import sys,json; print(len(json.load(sys.stdin)))" 2>/dev/null) user(s)"
 
     api_post "/sync-ack/${SERVER_ID}" "{}"
     echo "[sync] Sync complete"
 }
 
-# ── Report traffic ────────────────────────────────
+# ── Report traffic via iptables byte counts ───────
 report_traffic() {
-    local stats
-    stats=$(get_stats)
-    [[ "$stats" == "{}" ]] && return
+    [[ ! -f "$PORT_MAP" ]] && return
+    local port_map
+    port_map=$(cat "$PORT_MAP")
+    [[ "$port_map" == "{}" ]] && return
 
-    # Load previous state
-    local prev="{}"
-    [[ -f "$STATE_FILE" ]] && prev=$(cat "$STATE_FILE")
-
-    # Calculate deltas and build payload
     local payload
-    payload=$(python3 -c "
-import sys, json
-stats = json.loads('''$stats''')
-prev = json.loads('''$prev''')
+    payload=$(python3 - << PYEOF
+import subprocess, json, re
+
+with open('$PORT_MAP') as _f:
+    port_map = json.load(_f)
+
+def read_chain(chain, field):
+    try:
+        out = subprocess.check_output(['iptables', '-xvnL', chain], stderr=subprocess.DEVNULL).decode()
+    except:
+        return {}
+    result = {}
+    for line in out.splitlines():
+        m = re.search(r'^\s*\d+\s+(\d+)\s+.*?' + field + r':(\d+)', line)
+        if m:
+            result[m.group(2)] = result.get(m.group(2), 0) + int(m.group(1))
+    return result
+
+dl = read_chain('VPN_IN',  'dpt')
+ul = read_chain('VPN_OUT', 'spt')
+
 entries = []
-for port, val in stats.items():
-    prev_val = prev.get(port, 0)
-    delta = max(0, val - prev_val)
-    if delta > 0:
+for port, uid in port_map.items():
+    d = dl.get(port, 0)
+    u = ul.get(port, 0)
+    if d > 0 or u > 0:
         entries.append({
-            'user_server_id': port,  # placeholder; real mapping done server-side
-            'upload_bytes': delta // 2,
-            'download_bytes': delta // 2,
+            'user_server_id': uid,
+            'upload_bytes': u,
+            'download_bytes': d,
             'interval_sec': $CYCLE_SECONDS
         })
 print(json.dumps(entries))
-" 2>/dev/null)
+PYEOF
+)
 
     if [[ -n "$payload" && "$payload" != "[]" ]]; then
         api_post "/traffic/${SERVER_ID}" "$payload" > /dev/null
+        # Reset counters after reporting
+        iptables -Z VPN_IN  2>/dev/null || true
+        iptables -Z VPN_OUT 2>/dev/null || true
+        echo "[traffic] Reported: $payload"
     fi
-
-    # Save current state
-    echo "$stats" > "$STATE_FILE"
 }
 
 # ── Main loop ─────────────────────────────────────
 echo "[agent] Starting VPN agent for server ${SERVER_ID}"
+FIRST_RUN=true
 
 while true; do
-    # Heartbeat
+    # ── Heartbeat ─────────────────────────────────
     response=$(api_post "/heartbeat/${SERVER_ID}" "{}")
-    sync_required=$(echo "$response" | python3 -c "import sys,json; print(json.load(sys.stdin).get('sync_required', False))" 2>/dev/null)
 
-    if [[ "$sync_required" == "True" ]]; then
+    sync_required=$(echo "$response" | python3 -c "import sys,json; print(json.load(sys.stdin).get('sync_required', False))" 2>/dev/null)
+    adguard_enabled=$(echo "$response" | python3 -c "import sys,json; print(json.load(sys.stdin).get('adguard_enabled', False))" 2>/dev/null)
+
+    # ── Sync users if needed (always on first run) ─
+    if [[ "$sync_required" == "True" || "$FIRST_RUN" == "true" ]]; then
         sync_users
+        FIRST_RUN=false
     fi
 
-    # Report traffic
+    # ── Watchdog: restart shadowsocks if down ──────
+    # Skip if config has no servers — nothing to run yet
+    server_count=$(python3 -c "import json; d=json.load(open('$SS_CONFIG')); print(len(d.get('servers', [])))" 2>/dev/null || echo 0)
+    if [[ "$server_count" -gt 0 ]] && ! systemctl is-active --quiet shadowsocks; then
+        echo "[watchdog] Shadowsocks is down — restarting"
+        report_traffic
+        systemctl restart shadowsocks
+        sleep 2
+        setup_accounting
+        echo "[watchdog] Shadowsocks restarted"
+    fi
+
+    # ── AdGuard Home control ───────────────────────
+    if [[ "$adguard_enabled" == "True" ]]; then
+        systemctl is-active --quiet adguardhome || { echo "[adguard] Starting AdGuard Home"; systemctl start adguardhome; }
+    else
+        systemctl is-active --quiet adguardhome && { echo "[adguard] Stopping AdGuard Home"; systemctl stop adguardhome; }
+    fi
+
+    # ── Report traffic ─────────────────────────────
     report_traffic
 
     sleep "$CYCLE_SECONDS"
