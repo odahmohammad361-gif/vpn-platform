@@ -407,7 +407,7 @@ def read_chain(chain, field):
     for line in out.splitlines():
         m = re.search(r'^\s*\d+\s+(\d+)\s+.*?' + field + r':(\d+)', line)
         if m:
-            result[m.group(2)] = int(m.group(1))
+            result[m.group(2)] = result.get(m.group(2), 0) + int(m.group(1))
     return result
 
 dl = read_chain('VPN_IN',  'dpt')
