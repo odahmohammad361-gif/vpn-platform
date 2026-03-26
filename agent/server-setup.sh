@@ -42,13 +42,41 @@ echo -e "${CYAN}  VPN Server Full Setup${NC}"
 echo -e "${CYAN}================================================${NC}"
 echo ""
 
-# ── STEP 1 — System packages ─────────────────────
+# ── STEP 1 — System packages + kernel tuning ─────
 echo -e "${YELLOW}[1/9] Installing system packages...${NC}"
 apt-get update -qq
 apt-get install -y -qq curl wget tar xz-utils ufw fail2ban openssl python3 jq
 # optional — ignore if unavailable
 apt-get install -y python3-bcrypt 2>/dev/null || true
 echo -e "${GREEN}      Done${NC}"
+
+# Kernel tuning for high-throughput low-latency VPN (China-optimized)
+cat >> /etc/sysctl.conf << 'SYSCTL_EOF'
+fs.file-max = 51200
+net.core.rmem_max = 134217728
+net.core.wmem_max = 134217728
+net.ipv4.tcp_rmem = 4096 87380 67108864
+net.ipv4.tcp_wmem = 4096 65536 67108864
+net.core.netdev_max_backlog = 250000
+net.core.somaxconn = 65535
+net.ipv4.tcp_max_syn_backlog = 65535
+net.ipv4.tcp_tw_reuse = 1
+net.ipv4.tcp_fin_timeout = 10
+net.ipv4.tcp_keepalive_time = 60
+net.ipv4.tcp_keepalive_intvl = 10
+net.ipv4.tcp_keepalive_probes = 6
+net.core.default_qdisc = fq
+net.ipv4.tcp_congestion_control = bbr
+net.ipv4.tcp_mtu_probing = 1
+net.ipv4.tcp_ecn = 0
+SYSCTL_EOF
+sysctl -p > /dev/null 2>&1 || true
+
+# File descriptor limits
+echo "* soft nofile 51200
+* hard nofile 51200
+root soft nofile 51200
+root hard nofile 51200" >> /etc/security/limits.conf
 
 # ── STEP 2 — Download shadowsocks-rust ───────────
 echo -e "${YELLOW}[2/9] Downloading shadowsocks-rust v${SS_VERSION}...${NC}"
