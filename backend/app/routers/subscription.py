@@ -33,12 +33,12 @@ def _disabled_slots(reason: str | None) -> list[dict]:
 
 def _userinfo_header(user: User) -> str:
     """Build Subscription-Userinfo header for Shadowrocket/Clash to display."""
+    total = user.quota_bytes if user.quota_bytes > 0 else 1099511627776  # 1 TiB for unlimited
     parts = [
         f"upload=0",
         f"download={user.bytes_used}",
+        f"total={total}",
     ]
-    if user.quota_bytes > 0:
-        parts.append(f"total={user.quota_bytes}")
     if user.expires_at:
         parts.append(f"expire={int(user.expires_at.timestamp())}")
     return "; ".join(parts)

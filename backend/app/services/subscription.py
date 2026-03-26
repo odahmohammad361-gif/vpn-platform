@@ -38,7 +38,13 @@ def build_clash(slots: list[dict]) -> str:
         },
         "proxies": proxies,
         "proxy-groups": [
-            {"name": "VPN", "type": "select", "proxies": proxy_names}
+            {
+                "name": "VPN",
+                "type": "select",
+                "proxies": proxy_names,
+                "url": "http://www.gstatic.com/generate_204",
+                "interval": 300,
+            }
         ],
         "rules": ["MATCH,VPN"],
     }
