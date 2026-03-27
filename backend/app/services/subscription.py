@@ -1,6 +1,60 @@
 import yaml
 from app.utils.base64_utils import build_ss_uri, encode_subscription
 
+# China domains/IPs that should go DIRECT (not through VPN)
+# Proxy only blocked/foreign traffic → avoids CAPTCHA from shared IP
+_CLASH_RULES = [
+    # Local network — always direct
+    "IP-CIDR,127.0.0.0/8,DIRECT",
+    "IP-CIDR,192.168.0.0/16,DIRECT",
+    "IP-CIDR,10.0.0.0/8,DIRECT",
+    "IP-CIDR,172.16.0.0/12,DIRECT",
+    # China IPs — direct (avoids CAPTCHA on Baidu, WeChat, etc.)
+    "GEOIP,CN,DIRECT",
+    # Chinese domains — direct
+    "DOMAIN-SUFFIX,cn,DIRECT",
+    "DOMAIN-SUFFIX,baidu.com,DIRECT",
+    "DOMAIN-SUFFIX,qq.com,DIRECT",
+    "DOMAIN-SUFFIX,weixin.qq.com,DIRECT",
+    "DOMAIN-SUFFIX,wechat.com,DIRECT",
+    "DOMAIN-SUFFIX,taobao.com,DIRECT",
+    "DOMAIN-SUFFIX,tmall.com,DIRECT",
+    "DOMAIN-SUFFIX,jd.com,DIRECT",
+    "DOMAIN-SUFFIX,alipay.com,DIRECT",
+    "DOMAIN-SUFFIX,aliyun.com,DIRECT",
+    "DOMAIN-SUFFIX,alibaba.com,DIRECT",
+    "DOMAIN-SUFFIX,bilibili.com,DIRECT",
+    "DOMAIN-SUFFIX,iqiyi.com,DIRECT",
+    "DOMAIN-SUFFIX,youku.com,DIRECT",
+    "DOMAIN-SUFFIX,weibo.com,DIRECT",
+    "DOMAIN-SUFFIX,zhihu.com,DIRECT",
+    "DOMAIN-SUFFIX,douyin.com,DIRECT",
+    "DOMAIN-SUFFIX,tiktok.com,DIRECT",
+    "DOMAIN-SUFFIX,xiaomi.com,DIRECT",
+    "DOMAIN-SUFFIX,huawei.com,DIRECT",
+    # Everything else → VPN
+    "MATCH,VPN",
+]
+
+_SURGE_RULES = [
+    "IP-CIDR,127.0.0.0/8,DIRECT",
+    "IP-CIDR,192.168.0.0/16,DIRECT",
+    "IP-CIDR,10.0.0.0/8,DIRECT",
+    "IP-CIDR,172.16.0.0/12,DIRECT",
+    "GEOIP,CN,DIRECT",
+    "DOMAIN-SUFFIX,cn,DIRECT",
+    "DOMAIN-SUFFIX,baidu.com,DIRECT",
+    "DOMAIN-SUFFIX,qq.com,DIRECT",
+    "DOMAIN-SUFFIX,wechat.com,DIRECT",
+    "DOMAIN-SUFFIX,taobao.com,DIRECT",
+    "DOMAIN-SUFFIX,jd.com,DIRECT",
+    "DOMAIN-SUFFIX,bilibili.com,DIRECT",
+    "DOMAIN-SUFFIX,weibo.com,DIRECT",
+    "DOMAIN-SUFFIX,zhihu.com,DIRECT",
+    "DOMAIN-SUFFIX,douyin.com,DIRECT",
+    "FINAL,VPN",
+]
+
 
 def build_shadowrocket(slots: list[dict]) -> str:
     """Base64-encoded ss:// URI list for Shadowrocket."""
@@ -12,7 +66,7 @@ def build_shadowrocket(slots: list[dict]) -> str:
 
 
 def build_clash(slots: list[dict]) -> str:
-    """Clash Meta YAML subscription."""
+    """Clash Meta YAML subscription with China-direct routing rules."""
     proxies = [
         {
             "name": s["name"],
@@ -26,14 +80,13 @@ def build_clash(slots: list[dict]) -> str:
         for s in slots
     ]
     proxy_names = [s["name"] for s in slots]
-    # Use VPN server IPs as DNS — routes through AdGuard Home when enabled
     dns_servers = list(dict.fromkeys(s["host"] for s in slots))
     config = {
         "dns": {
             "enable": True,
             "ipv6": False,
-            "nameserver": dns_servers,
-            "fallback": ["8.8.8.8", "1.1.1.1"],
+            "nameserver": ["114.114.114.114", "223.5.5.5"],
+            "fallback": dns_servers,
             "fallback-filter": {"geoip": True, "geoip-code": "CN"},
         },
         "proxies": proxies,
@@ -41,12 +94,12 @@ def build_clash(slots: list[dict]) -> str:
             {
                 "name": "VPN",
                 "type": "select",
-                "proxies": proxy_names,
+                "proxies": ["DIRECT"] + proxy_names,
                 "url": "http://www.gstatic.com/generate_204",
                 "interval": 300,
             }
         ],
-        "rules": ["MATCH,VPN"],
+        "rules": _CLASH_RULES,
     }
     return yaml.dump(config, allow_unicode=True, sort_keys=False)
 
@@ -61,9 +114,9 @@ def build_v2rayng(slots: list[dict]) -> str:
 
 
 def build_surge_conf(slots: list[dict]) -> str:
-    """Shadowrocket conf with dns-server pointing to VPN servers (routes through AdGuard)."""
+    """Shadowrocket/Surge conf with China-direct routing rules."""
     dns_servers = list(dict.fromkeys(s["host"] for s in slots))
-    dns_str = ", ".join(dns_servers) + ", system"
+    dns_str = "114.114.114.114, 223.5.5.5, " + ", ".join(dns_servers) + ", system"
 
     lines = [
         "[General]",
@@ -73,22 +126,22 @@ def build_surge_conf(slots: list[dict]) -> str:
         "ipv6 = false",
         "",
         "[Proxy]",
+        "DIRECT = direct",
     ]
 
     proxy_names = []
     for s in slots:
         name = s["name"]
         proxy_names.append(name)
-        # Shadowrocket ss format: Name = ss, server, port, method, password
         lines.append(f"{name} = ss, {s['host']}, {s['port']}, {s['method']}, {s['password']}")
 
     lines += [
         "",
         "[Proxy Group]",
-        f"VPN = select, {', '.join(proxy_names)}",
+        f"VPN = select, DIRECT, {', '.join(proxy_names)}",
         "",
         "[Rule]",
-        "MATCH,VPN",
     ]
+    lines += _SURGE_RULES
 
     return "\n".join(lines)
