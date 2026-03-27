@@ -11,7 +11,7 @@ function formatBytes(b: number) {
 }
 
 function QuotaBar({ used, quota }: { used: number; quota: number }) {
-  if (quota === 0) return <span className="text-gray-500 text-xs">Unlimited</span>;
+  if (quota === 0) return <span className="text-gray-500 text-xs">Unlimited ({formatBytes(used)} used)</span>;
   const pct = Math.min(100, (used / quota) * 100);
   const color = pct > 90 ? "bg-red-500" : pct > 70 ? "bg-orange-500" : "bg-blue-500";
   return (

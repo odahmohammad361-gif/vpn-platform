@@ -75,7 +75,7 @@ for e in entries:
         'mode': 'tcp_and_udp',
         'fast_open': False,
         'no_delay': True,
-        'mtu': 1400
+        'mtu': 1360
     })
 print(json.dumps({'servers': servers}, indent=4))
 " > "$SS_CONFIG"

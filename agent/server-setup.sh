@@ -142,6 +142,8 @@ net.core.wmem_max=134217728
 net.ipv4.tcp_rmem=4096 87380 67108864
 net.ipv4.tcp_wmem=4096 65536 67108864
 net.ipv4.tcp_mtu_probing=1
+# Disable ECN — causes handshake failures on China Mobile/Unicom networks
+net.ipv4.tcp_ecn=0
 # TCP fast open for both client and server
 net.ipv4.tcp_fastopen=3
 # Connection queue depth
@@ -390,7 +392,7 @@ for e in entries:
         'mode': 'tcp_and_udp',
         'fast_open': False,
         'no_delay': True,
-        'mtu': 1400
+        'mtu': 1360
     })
 print(json.dumps({'servers': servers}, indent=4))
 " > "$SS_CONFIG"
