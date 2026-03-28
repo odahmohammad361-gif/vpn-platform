@@ -18,7 +18,7 @@ from telegram.ext import (
     CallbackQueryHandler,
 )
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from sqlalchemy import select, update
+from sqlalchemy import select, update as sa_update
 
 # ── Config ────────────────────────────────────────────────────────────────────
 BOT_TOKEN        = os.environ["TELEGRAM_BOT_TOKEN"]
@@ -120,7 +120,7 @@ async def cmd_login(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Link telegram_id
         await db.execute(
-            update(User)
+            sa_update(User)
             .where(User.id == user.id)
             .values(telegram_id=update.effective_user.id)
         )
