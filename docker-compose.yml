@@ -31,6 +31,7 @@ services:
     build: ./nginx
     restart: always
     ports:
+      - "80:80"
       - "8080:8080"
       - "8443:8443"
     depends_on:
@@ -42,6 +43,12 @@ services:
       - vpn_net
     volumes:
       - ./nginx/certs:/etc/nginx/certs:ro
+
+  portal:
+    build: ./portal
+    restart: always
+    networks:
+      - vpn_net
 
   telegram:
     build: ./telegram

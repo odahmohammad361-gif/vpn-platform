@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import engine, Base
-from app.routers import auth, users, servers, subscription, agent, stats, plans
+from app.routers import auth, users, servers, subscription, agent, stats, plans, portal
 from app.services.scheduler import start_scheduler, scheduler
 
 
@@ -35,6 +35,7 @@ app.include_router(subscription.router)
 app.include_router(agent.router)
 app.include_router(stats.router)
 app.include_router(plans.router)
+app.include_router(portal.router)
 
 
 @app.get("/health")
