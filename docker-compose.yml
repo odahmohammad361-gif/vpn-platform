@@ -1,6 +1,6 @@
 version: "3.9"
 
-# ── Deployment: Amazon Windows Server (Docker Desktop / WSL2) ──
+# ── Deployment: AWS Ubuntu EC2 ──
 # Database: Aurora RDS PostgreSQL (external — not in compose)
 # VPN Servers: 2x Contabo Ubuntu (run agent separately)
 
@@ -42,6 +42,19 @@ services:
       - vpn_net
     volumes:
       - ./nginx/certs:/etc/nginx/certs:ro
+
+  telegram:
+    build: ./telegram
+    restart: always
+    env_file: .env
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - vpn_net
 
 networks:
   vpn_net:
