@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Shield, Check, ArrowLeft, Loader2 } from 'lucide-react'
-import api from '../lib/api'
+import axios from 'axios'
+
+const API = import.meta.env.VITE_API_URL || ''
 
 const PLAN_FEATURES = [
   '500 GB / month',
@@ -20,13 +22,12 @@ export default function Signup() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
 
-  // Load plans on mount
-  useState(() => {
-    api.get('/signup/plans').then(r => {
+  useEffect(() => {
+    axios.get(`${API}/signup/plans`).then((r: any) => {
       setPlans(r.data)
       setLoadingPlans(false)
     }).catch(() => setLoadingPlans(false))
-  })
+  }, [])
 
   const handleSubmit = async () => {
     if (!username.trim()) { setError('Please enter a username'); return }
@@ -34,7 +35,7 @@ export default function Signup() {
     setError('')
     setSubmitting(true)
     try {
-      const res = await api.post('/signup', {
+      const res = await axios.post(`${API}/signup`, {
         username: username.trim(),
         plan_id: selectedPlan.id,
         telegram_username: telegramUsername.trim() || null,
@@ -104,7 +105,7 @@ export default function Signup() {
                   <div className="text-2xl font-bold text-white mb-0.5">${p.price_usdt} <span className="text-sm font-normal text-gray-500">USDT</span></div>
                   <div className="text-gray-600 text-xs mb-4">≈ ¥{p.price_rmb} RMB</div>
                   <ul className="space-y-1.5">
-                    {PLAN_FEATURES.map(f => (
+                    {PLAN_FEATURES.map((f: string) => (
                       <li key={f} className="flex items-center gap-2 text-xs text-gray-400">
                         <Check className="w-3 h-3 text-green-400 flex-shrink-0" />
                         {f}
@@ -126,7 +127,7 @@ export default function Signup() {
               type="text"
               placeholder="e.g. john123"
               value={username}
-              onChange={e => setUsername(e.target.value)}
+              onChange={(e: any) => setUsername(e.target.value)}
               className="w-full px-4 py-2.5 rounded-xl bg-white/5 text-white border border-white/10 focus:outline-none focus:border-brand-500/60 transition placeholder-gray-600 text-sm"
             />
             <p className="text-gray-600 text-xs mt-1">Letters and numbers only, used to identify your account</p>
@@ -137,7 +138,7 @@ export default function Signup() {
               type="text"
               placeholder="@yourusername"
               value={telegramUsername}
-              onChange={e => setTelegramUsername(e.target.value)}
+              onChange={(e: any) => setTelegramUsername(e.target.value)}
               className="w-full px-4 py-2.5 rounded-xl bg-white/5 text-white border border-white/10 focus:outline-none focus:border-brand-500/60 transition placeholder-gray-600 text-sm"
             />
             <p className="text-gray-600 text-xs mt-1">We'll contact you here after payment is confirmed</p>

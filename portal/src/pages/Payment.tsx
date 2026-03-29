@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Shield, Copy, Check, Loader2, CheckCircle, ArrowLeft } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
-import api from '../lib/api'
+import axios from 'axios'
+
+const API = import.meta.env.VITE_API_URL || ''
 
 export default function Payment() {
   const { state } = useLocation()
@@ -21,21 +23,18 @@ export default function Payment() {
     note: string
   }
 
-  // If user lands here without state (e.g. refresh), redirect home
   useEffect(() => {
     if (!info?.user_id) navigate('/')
-  }, [info])
+  }, [])
 
-  // Poll every 10 seconds for payment confirmation
   useEffect(() => {
     if (!info?.user_id || status === 'paid') return
     const interval = setInterval(async () => {
       try {
-        const res = await api.get(`/signup/status/${info.user_id}`)
+        const res = await axios.get(`${API}/signup/status/${info.user_id}`)
         if (res.data.payment_status === 'paid') {
           setStatus('paid')
           clearInterval(interval)
-          // Auto-redirect to login after 3s with token pre-filled
           setTimeout(() => navigate('/login', { state: { token: res.data.subscription_token } }), 3000)
         }
       } catch {}
@@ -52,7 +51,7 @@ export default function Payment() {
   const checkNow = async () => {
     setChecking(true)
     try {
-      const res = await api.get(`/signup/status/${info.user_id}`)
+      const res = await axios.get(`${API}/signup/status/${info.user_id}`)
       if (res.data.payment_status === 'paid') {
         setStatus('paid')
         setTimeout(() => navigate('/login', { state: { token: res.data.subscription_token } }), 3000)
@@ -76,7 +75,6 @@ export default function Payment() {
 
   return (
     <div className="min-h-screen bg-[#0a0f1e] flex flex-col">
-      {/* Nav */}
       <nav className="flex items-center justify-between px-6 py-4 border-b border-white/5">
         <button onClick={() => navigate('/signup')} className="flex items-center gap-2 text-gray-400 hover:text-white transition">
           <ArrowLeft className="w-4 h-4" />
@@ -124,7 +122,6 @@ export default function Payment() {
               {copied === 'wallet' ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4 text-gray-400" />}
             </button>
           </div>
-          {/* QR Code */}
           <div className="flex justify-center">
             <div className="bg-white p-3 rounded-xl">
               <QRCodeSVG value={info.wallet} size={160} />
