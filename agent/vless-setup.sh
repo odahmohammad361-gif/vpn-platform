@@ -116,8 +116,8 @@ echo -e "${YELLOW}[3/7] Generating Reality keys...${NC}"
 
 mkdir -p "$XRAY_DIR"
 REALITY_KEYS=$("$XRAY_BIN" x25519)
-REALITY_PRIVATE=$(echo "$REALITY_KEYS" | grep "Private key:" | awk '{print $3}')
-REALITY_PUBLIC=$(echo "$REALITY_KEYS" | grep "Public key:" | awk '{print $3}')
+REALITY_PRIVATE=$(echo "$REALITY_KEYS" | grep -i "private" | awk '{print $NF}')
+REALITY_PUBLIC=$(echo "$REALITY_KEYS" | grep -i "public" | awk '{print $NF}')
 REALITY_SHORT_ID=$(openssl rand -hex 8)
 
 echo "REALITY_PRIVATE=${REALITY_PRIVATE}" > "$XRAY_DIR/reality.env"
