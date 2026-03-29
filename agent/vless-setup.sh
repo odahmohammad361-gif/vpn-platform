@@ -28,7 +28,7 @@ NC='\033[0m'
 
 XRAY_DIR="/etc/xray"
 XRAY_BIN="/usr/local/bin/xray"
-REALITY_SNI="www.microsoft.com"
+REALITY_SNI="www.apple.com"
 
 echo ""
 echo -e "${CYAN}================================================${NC}"
@@ -79,6 +79,7 @@ net.ipv4.tcp_fin_timeout=10
 net.ipv4.tcp_keepalive_time=60
 net.ipv4.tcp_keepalive_intvl=10
 net.ipv4.tcp_keepalive_probes=6
+net.ipv4.tcp_slow_start_after_idle=0
 EOF
 sysctl -p > /dev/null 2>&1
 echo "* soft nofile 51200
@@ -101,7 +102,7 @@ case "$ARCH" in
         ;;
 esac
 
-XRAY_VERSION=$(curl -sfk https://api.github.com/repos/XTLS/Xray-core/releases/latest | python3 -c "import sys,json; print(json.load(sys.stdin)['tag_name'])" 2>/dev/null || echo "v25.3.6")
+XRAY_VERSION=$(curl -sfk https://api.github.com/repos/XTLS/Xray-core/releases/latest | python3 -c "import sys,json; print(json.load(sys.stdin)['tag_name'])" 2>/dev/null || echo "v26.2.4")
 XRAY_URL="https://github.com/XTLS/Xray-core/releases/download/${XRAY_VERSION}/Xray-linux-${XRAY_ARCH}.zip"
 
 wget -q --show-progress "$XRAY_URL" -O /tmp/xray.zip
@@ -156,10 +157,7 @@ cat > "$XRAY_DIR/config.json" << EOF
           "shortIds": ["${REALITY_SHORT_ID}"]
         }
       },
-      "sniffing": {
-        "enabled": true,
-        "destOverride": ["http", "tls"]
-      }
+      "sniffing": { "enabled": false }
     },
     {
       "listen": "127.0.0.1",
@@ -291,7 +289,7 @@ for e in entries:
     # password field holds the UUID for VLESS
     clients.append({
         "id": e['password'],
-        "flow": "",
+        "flow": "xtls-rprx-vision",
         "email": uid
     })
     user_map[uid] = uid
