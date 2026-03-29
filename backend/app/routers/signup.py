@@ -5,6 +5,7 @@ GET  /signup/plans    — list plans (public)
 GET  /signup/status/{user_id} — check payment status
 POST /signup/confirm/{user_id} — admin manual confirm (fallback)
 """
+import uuid
 import secrets
 import hashlib
 import hmac
@@ -206,7 +207,7 @@ async def _activate_user(user: User, db: AsyncSession):
     )
     already_assigned = set(existing_result.scalars().all())
 
-    shared_password = secrets.token_hex(16)
+    shared_password = str(uuid.uuid4())
 
     for server in all_servers:
         if server.id in already_assigned:

@@ -17,6 +17,8 @@ class Server(Base):
     port_range_end: Mapped[int] = mapped_column(Integer, default=29999)
     protocol: Mapped[str] = mapped_column(String(32), default="shadowsocks")
     method: Mapped[str] = mapped_column(String(64), default="chacha20-ietf-poly1305")
+    reality_public_key: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reality_short_id: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     adguard_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     force_sync: Mapped[bool] = mapped_column(Boolean, default=False)

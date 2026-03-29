@@ -165,7 +165,7 @@ async def assign_server(user_id: uuid.UUID, server_id: uuid.UUID, db: AsyncSessi
     )
     existing_slot = existing_slot_result.first()
     preferred_port = existing_slot.port if existing_slot else None
-    shared_password = existing_slot.password if existing_slot else secrets.token_hex(16)
+    shared_password = existing_slot.password if existing_slot else str(uuid.uuid4())
 
     if preferred_port and preferred_port not in taken:
         free_port = preferred_port
@@ -263,7 +263,7 @@ async def assign_plan(user_id: uuid.UUID, plan_id: uuid.UUID, db: AsyncSession =
             select(UserServer.port, UserServer.password).where(UserServer.user_id == user_id).limit(1)
         )
         existing_slot = existing_slot_result.first()
-        shared_password = existing_slot.password if existing_slot else secrets.token_hex(16)
+        shared_password = existing_slot.password if existing_slot else str(uuid.uuid4())
 
         max_port_result = await db.execute(
             select(func.max(UserServer.port)).where(UserServer.server_id == server.id)
