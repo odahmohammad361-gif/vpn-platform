@@ -1,0 +1,350 @@
+ubuntu@ip-172-31-30-8:~/vpn-platform$ docker compose logs telegram
+WARN[0000] /home/ubuntu/vpn-platform/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion 
+telegram-1  | INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+telegram-1  | INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+telegram-1  | INFO:__main__:Bot started.
+telegram-1  | INFO:httpx:HTTP Request: POST https://api.telegram.org/bot8791274279:AAH0dYWzo43hKxqvG17nAlUVlYkF3qEfYmw/getMe "HTTP/1.1 200 OK"
+telegram-1  | INFO:httpx:HTTP Request: POST https://api.telegram.org/bot8791274279:AAH0dYWzo43hKxqvG17nAlUVlYkF3qEfYmw/deleteWebhook "HTTP/1.1 200 OK"
+telegram-1  | INFO:apscheduler.scheduler:Added job "<lambda>" to job store "default"
+telegram-1  | INFO:apscheduler.scheduler:Added job "<lambda>" to job store "default"
+telegram-1  | INFO:apscheduler.scheduler:Scheduler started
+telegram-1  | INFO:telegram.ext.Application:Application started
+telegram-1  | INFO:apscheduler.executors.default:Running job "<lambda> (trigger: interval[1:00:00], next run at: 2026-03-29 00:37:43 UTC)" (scheduled at 2026-03-28 23:37:43.122506+00:00)
+telegram-1  | ERROR:telegram.ext.Application:No error handlers are registered, logging exception.
+telegram-1  | Traceback (most recent call last):
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 514, in _prepare_and_execute
+telegram-1  |     prepared_stmt, attributes = await adapt_connection._prepare(
+telegram-1  |                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 760, in _prepare
+telegram-1  |     prepared_stmt = await self._connection.prepare(
+telegram-1  |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/asyncpg/connection.py", line 636, in prepare
+telegram-1  |     return await self._prepare(
+telegram-1  |            ^^^^^^^^^^^^^^^^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/asyncpg/connection.py", line 654, in _prepare
+telegram-1  |     stmt = await self._get_statement(
+telegram-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/asyncpg/connection.py", line 433, in _get_statement
+telegram-1  |     statement = await self._protocol.prepare(
+telegram-1  |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+telegram-1  |   File "asyncpg/protocol/protocol.pyx", line 166, in prepare
+telegram-1  | asyncpg.exceptions.UndefinedColumnError: column users.telegram_id does not exist
+telegram-1  | 
+telegram-1  | The above exception was the direct cause of the following exception:
+telegram-1  | 
+telegram-1  | Traceback (most recent call last):
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+telegram-1  |     self.dialect.do_execute(
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 924, in do_execute
+telegram-1  |     cursor.execute(statement, parameters)
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 572, in execute
+telegram-1  |     self._adapt_connection.await_(
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 132, in await_only
+telegram-1  |     return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+telegram-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 196, in greenlet_spawn
+telegram-1  |     value = await result
+telegram-1  |             ^^^^^^^^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 550, in _prepare_and_execute
+telegram-1  |     self._handle_exception(error)
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 501, in _handle_exception
+telegram-1  |     self._adapt_connection._handle_exception(error)
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 784, in _handle_exception
+telegram-1  |     raise translated_error from error
+telegram-1  | sqlalchemy.dialects.postgresql.asyncpg.AsyncAdapt_asyncpg_dbapi.ProgrammingError: <class 'asyncpg.exceptions.UndefinedColumnError'>: column users.telegram_id does not exist
+telegram-1  | 
+telegram-1  | The above exception was the direct cause of the following exception:
+telegram-1  | 
+telegram-1  | Traceback (most recent call last):
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/telegram/ext/_jobqueue.py", line 971, in _run
+telegram-1  |     await self.callback(context)
+telegram-1  |   File "/app/bot.py", line 377, in send_expiry_reminders
+telegram-1  |     result = await db.execute(
+telegram-1  |              ^^^^^^^^^^^^^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/ext/asyncio/session.py", line 461, in execute
+telegram-1  |     result = await greenlet_spawn(
+telegram-1  |              ^^^^^^^^^^^^^^^^^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 201, in greenlet_spawn
+telegram-1  |     result = context.throw(*sys.exc_info())
+telegram-1  |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 2351, in execute
+telegram-1  |     return self._execute_internal(
+telegram-1  |            ^^^^^^^^^^^^^^^^^^^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 2236, in _execute_internal
+telegram-1  |     result: Result[Any] = compile_state_cls.orm_execute_statement(
+telegram-1  |                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/context.py", line 293, in orm_execute_statement
+telegram-1  |     result = conn.execute(
+telegram-1  |              ^^^^^^^^^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1418, in execute
+telegram-1  |     return meth(
+telegram-1  |            ^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/sql/elements.py", line 515, in _execute_on_connection
+telegram-1  |     return connection._execute_clauseelement(
+telegram-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1640, in _execute_clauseelement
+telegram-1  |     ret = self._execute_context(
+telegram-1  |           ^^^^^^^^^^^^^^^^^^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+telegram-1  |     return self._exec_single_context(
+telegram-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+telegram-1  |     self._handle_dbapi_exception(
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 2353, in _handle_dbapi_exception
+telegram-1  |     raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+telegram-1  |     self.dialect.do_execute(
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 924, in do_execute
+telegram-1  |     cursor.execute(statement, parameters)
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 572, in execute
+telegram-1  |     self._adapt_connection.await_(
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 132, in await_only
+telegram-1  |     return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+telegram-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 196, in greenlet_spawn
+telegram-1  |     value = await result
+telegram-1  |             ^^^^^^^^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 550, in _prepare_and_execute
+telegram-1  |     self._handle_exception(error)
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 501, in _handle_exception
+telegram-1  |     self._adapt_connection._handle_exception(error)
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 784, in _handle_exception
+telegram-1  |     raise translated_error from error
+telegram-1  | sqlalchemy.exc.ProgrammingError: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedColumnError'>: column users.telegram_id does not exist
+telegram-1  | [SQL: SELECT users.id, users.username, users.subscription_token, users.is_active, users.disabled_reason, users.quota_bytes, users.bytes_used, users.expires_at, users.telegram_id, users.deleted_at, users.created_at 
+telegram-1  | FROM users 
+telegram-1  | WHERE users.telegram_id IS NOT NULL AND users.deleted_at IS NULL AND users.is_active = true AND users.expires_at > $1::TIMESTAMP WITH TIME ZONE AND users.expires_at <= $2::TIMESTAMP WITH TIME ZONE]
+telegram-1  | [parameters: (datetime.datetime(2026, 3, 28, 23, 37, 43, 130321, tzinfo=datetime.timezone.utc), datetime.datetime(2026, 3, 31, 23, 37, 43, 130321, tzinfo=datetime.timezone.utc))]
+telegram-1  | (Background on this error at: https://sqlalche.me/e/20/f405)
+telegram-1  | INFO:apscheduler.executors.default:Job "<lambda> (trigger: interval[1:00:00], next run at: 2026-03-29 00:37:43 UTC)" executed successfully
+telegram-1  | INFO:httpx:HTTP Request: POST https://api.telegram.org/bot8791274279:AAH0dYWzo43hKxqvG17nAlUVlYkF3qEfYmw/getUpdates "HTTP/1.1 200 OK"
+telegram-1  | INFO:httpx:HTTP Request: POST https://api.telegram.org/bot8791274279:AAH0dYWzo43hKxqvG17nAlUVlYkF3qEfYmw/getUpdates "HTTP/1.1 200 OK"
+telegram-1  | INFO:apscheduler.executors.default:Running job "<lambda> (trigger: interval[1:00:00], next run at: 2026-03-29 00:38:03 UTC)" (scheduled at 2026-03-28 23:38:03.123232+00:00)
+telegram-1  | ERROR:telegram.ext.Application:No error handlers are registered, logging exception.
+telegram-1  | Traceback (most recent call last):
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 514, in _prepare_and_execute
+telegram-1  |     prepared_stmt, attributes = await adapt_connection._prepare(
+telegram-1  |                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 760, in _prepare
+telegram-1  |     prepared_stmt = await self._connection.prepare(
+telegram-1  |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/asyncpg/connection.py", line 636, in prepare
+telegram-1  |     return await self._prepare(
+telegram-1  |            ^^^^^^^^^^^^^^^^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/asyncpg/connection.py", line 654, in _prepare
+telegram-1  |     stmt = await self._get_statement(
+telegram-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/asyncpg/connection.py", line 433, in _get_statement
+telegram-1  |     statement = await self._protocol.prepare(
+telegram-1  |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+telegram-1  |   File "asyncpg/protocol/protocol.pyx", line 166, in prepare
+telegram-1  | asyncpg.exceptions.UndefinedColumnError: column users.telegram_id does not exist
+telegram-1  | 
+telegram-1  | The above exception was the direct cause of the following exception:
+telegram-1  | 
+telegram-1  | Traceback (most recent call last):
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+telegram-1  |     self.dialect.do_execute(
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 924, in do_execute
+telegram-1  |     cursor.execute(statement, parameters)
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 572, in execute
+telegram-1  |     self._adapt_connection.await_(
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 132, in await_only
+telegram-1  |     return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+telegram-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 196, in greenlet_spawn
+telegram-1  |     value = await result
+telegram-1  |             ^^^^^^^^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 550, in _prepare_and_execute
+telegram-1  |     self._handle_exception(error)
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 501, in _handle_exception
+telegram-1  |     self._adapt_connection._handle_exception(error)
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 784, in _handle_exception
+telegram-1  |     raise translated_error from error
+telegram-1  | sqlalchemy.dialects.postgresql.asyncpg.AsyncAdapt_asyncpg_dbapi.ProgrammingError: <class 'asyncpg.exceptions.UndefinedColumnError'>: column users.telegram_id does not exist
+telegram-1  | 
+telegram-1  | The above exception was the direct cause of the following exception:
+telegram-1  | 
+telegram-1  | Traceback (most recent call last):
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/telegram/ext/_jobqueue.py", line 971, in _run
+telegram-1  |     await self.callback(context)
+telegram-1  |   File "/app/bot.py", line 407, in send_quota_warnings
+telegram-1  |     result = await db.execute(
+telegram-1  |              ^^^^^^^^^^^^^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/ext/asyncio/session.py", line 461, in execute
+telegram-1  |     result = await greenlet_spawn(
+telegram-1  |              ^^^^^^^^^^^^^^^^^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 201, in greenlet_spawn
+telegram-1  |     result = context.throw(*sys.exc_info())
+telegram-1  |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 2351, in execute
+telegram-1  |     return self._execute_internal(
+telegram-1  |            ^^^^^^^^^^^^^^^^^^^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 2236, in _execute_internal
+telegram-1  |     result: Result[Any] = compile_state_cls.orm_execute_statement(
+telegram-1  |                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/context.py", line 293, in orm_execute_statement
+telegram-1  |     result = conn.execute(
+telegram-1  |              ^^^^^^^^^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1418, in execute
+telegram-1  |     return meth(
+telegram-1  |            ^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/sql/elements.py", line 515, in _execute_on_connection
+telegram-1  |     return connection._execute_clauseelement(
+telegram-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1640, in _execute_clauseelement
+telegram-1  |     ret = self._execute_context(
+telegram-1  |           ^^^^^^^^^^^^^^^^^^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+telegram-1  |     return self._exec_single_context(
+telegram-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+telegram-1  |     self._handle_dbapi_exception(
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 2353, in _handle_dbapi_exception
+telegram-1  |     raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+telegram-1  |     self.dialect.do_execute(
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 924, in do_execute
+telegram-1  |     cursor.execute(statement, parameters)
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 572, in execute
+telegram-1  |     self._adapt_connection.await_(
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 132, in await_only
+telegram-1  |     return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+telegram-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 196, in greenlet_spawn
+telegram-1  |     value = await result
+telegram-1  |             ^^^^^^^^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 550, in _prepare_and_execute
+telegram-1  |     self._handle_exception(error)
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 501, in _handle_exception
+telegram-1  |     self._adapt_connection._handle_exception(error)
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 784, in _handle_exception
+telegram-1  |     raise translated_error from error
+telegram-1  | sqlalchemy.exc.ProgrammingError: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedColumnError'>: column users.telegram_id does not exist
+telegram-1  | [SQL: SELECT users.id, users.username, users.subscription_token, users.is_active, users.disabled_reason, users.quota_bytes, users.bytes_used, users.expires_at, users.telegram_id, users.deleted_at, users.created_at 
+telegram-1  | FROM users 
+telegram-1  | WHERE users.telegram_id IS NOT NULL AND users.deleted_at IS NULL AND users.is_active = true AND users.quota_bytes > $1::BIGINT]
+telegram-1  | [parameters: (0,)]
+telegram-1  | (Background on this error at: https://sqlalche.me/e/20/f405)
+telegram-1  | INFO:apscheduler.executors.default:Job "<lambda> (trigger: interval[1:00:00], next run at: 2026-03-29 00:38:03 UTC)" executed successfully
+telegram-1  | INFO:httpx:HTTP Request: POST https://api.telegram.org/bot8791274279:AAH0dYWzo43hKxqvG17nAlUVlYkF3qEfYmw/getUpdates "HTTP/1.1 200 OK"
+telegram-1  | INFO:httpx:HTTP Request: POST https://api.telegram.org/bot8791274279:AAH0dYWzo43hKxqvG17nAlUVlYkF3qEfYmw/getUpdates "HTTP/1.1 200 OK"
+telegram-1  | INFO:httpx:HTTP Request: POST https://api.telegram.org/bot8791274279:AAH0dYWzo43hKxqvG17nAlUVlYkF3qEfYmw/getUpdates "HTTP/1.1 200 OK"
+telegram-1  | INFO:httpx:HTTP Request: POST https://api.telegram.org/bot8791274279:AAH0dYWzo43hKxqvG17nAlUVlYkF3qEfYmw/getUpdates "HTTP/1.1 200 OK"
+telegram-1  | ERROR:telegram.ext.Application:No error handlers are registered, logging exception.
+telegram-1  | Traceback (most recent call last):
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 514, in _prepare_and_execute
+telegram-1  |     prepared_stmt, attributes = await adapt_connection._prepare(
+telegram-1  |                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 760, in _prepare
+telegram-1  |     prepared_stmt = await self._connection.prepare(
+telegram-1  |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/asyncpg/connection.py", line 636, in prepare
+telegram-1  |     return await self._prepare(
+telegram-1  |            ^^^^^^^^^^^^^^^^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/asyncpg/connection.py", line 654, in _prepare
+telegram-1  |     stmt = await self._get_statement(
+telegram-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/asyncpg/connection.py", line 433, in _get_statement
+telegram-1  |     statement = await self._protocol.prepare(
+telegram-1  |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+telegram-1  |   File "asyncpg/protocol/protocol.pyx", line 166, in prepare
+telegram-1  | asyncpg.exceptions.UndefinedColumnError: column users.telegram_id does not exist
+telegram-1  | 
+telegram-1  | The above exception was the direct cause of the following exception:
+telegram-1  | 
+telegram-1  | Traceback (most recent call last):
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+telegram-1  |     self.dialect.do_execute(
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 924, in do_execute
+telegram-1  |     cursor.execute(statement, parameters)
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 572, in execute
+telegram-1  |     self._adapt_connection.await_(
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 132, in await_only
+telegram-1  |     return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+telegram-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 196, in greenlet_spawn
+telegram-1  |     value = await result
+telegram-1  |             ^^^^^^^^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 550, in _prepare_and_execute
+telegram-1  |     self._handle_exception(error)
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 501, in _handle_exception
+telegram-1  |     self._adapt_connection._handle_exception(error)
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 784, in _handle_exception
+telegram-1  |     raise translated_error from error
+telegram-1  | sqlalchemy.dialects.postgresql.asyncpg.AsyncAdapt_asyncpg_dbapi.ProgrammingError: <class 'asyncpg.exceptions.UndefinedColumnError'>: column users.telegram_id does not exist
+telegram-1  | 
+telegram-1  | The above exception was the direct cause of the following exception:
+telegram-1  | 
+telegram-1  | Traceback (most recent call last):
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/telegram/ext/_application.py", line 1335, in process_update
+telegram-1  |     await coroutine
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/telegram/ext/_handlers/basehandler.py", line 157, in handle_update
+telegram-1  |     return await self.callback(update, context)
+telegram-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+telegram-1  |   File "/app/bot.py", line 78, in cmd_start
+telegram-1  |     user = await get_user_by_telegram(db, update.effective_user.id)
+telegram-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+telegram-1  |   File "/app/bot.py", line 65, in get_user_by_telegram
+telegram-1  |     result = await db.execute(
+telegram-1  |              ^^^^^^^^^^^^^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/ext/asyncio/session.py", line 461, in execute
+telegram-1  |     result = await greenlet_spawn(
+telegram-1  |              ^^^^^^^^^^^^^^^^^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 201, in greenlet_spawn
+telegram-1  |     result = context.throw(*sys.exc_info())
+telegram-1  |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 2351, in execute
+telegram-1  |     return self._execute_internal(
+telegram-1  |            ^^^^^^^^^^^^^^^^^^^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 2236, in _execute_internal
+telegram-1  |     result: Result[Any] = compile_state_cls.orm_execute_statement(
+telegram-1  |                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/context.py", line 293, in orm_execute_statement
+telegram-1  |     result = conn.execute(
+telegram-1  |              ^^^^^^^^^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1418, in execute
+telegram-1  |     return meth(
+telegram-1  |            ^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/sql/elements.py", line 515, in _execute_on_connection
+telegram-1  |     return connection._execute_clauseelement(
+telegram-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1640, in _execute_clauseelement
+telegram-1  |     ret = self._execute_context(
+telegram-1  |           ^^^^^^^^^^^^^^^^^^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+telegram-1  |     return self._exec_single_context(
+telegram-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+telegram-1  |     self._handle_dbapi_exception(
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 2353, in _handle_dbapi_exception
+telegram-1  |     raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+telegram-1  |     self.dialect.do_execute(
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 924, in do_execute
+telegram-1  |     cursor.execute(statement, parameters)
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 572, in execute
+telegram-1  |     self._adapt_connection.await_(
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 132, in await_only
+telegram-1  |     return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+telegram-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 196, in greenlet_spawn
+telegram-1  |     value = await result
+telegram-1  |             ^^^^^^^^^^^^
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 550, in _prepare_and_execute
+telegram-1  |     self._handle_exception(error)
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 501, in _handle_exception
+telegram-1  |     self._adapt_connection._handle_exception(error)
+telegram-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 784, in _handle_exception
+telegram-1  |     raise translated_error from error
+telegram-1  | sqlalchemy.exc.ProgrammingError: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedColumnError'>: column users.telegram_id does not exist
+telegram-1  | [SQL: SELECT users.id, users.username, users.subscription_token, users.is_active, users.disabled_reason, users.quota_bytes, users.bytes_used, users.expires_at, users.telegram_id, users.deleted_at, users.created_at 
+telegram-1  | FROM users 
+telegram-1  | WHERE users.telegram_id = $1::BIGINT AND users.deleted_at IS NULL]
+telegram-1  | [parameters: (869907646,)]
+telegram-1  | (Background on this error at: https://sqlalche.me/e/20/f405)
+telegram-1  | INFO:httpx:HTTP Request: POST https://api.telegram.org/bot8791274279:AAH0dYWzo43hKxqvG17nAlUVlYkF3qEfYmw/getUpdates "HTTP/1.1 200 OK"
+telegram-1  | INFO:httpx:HTTP Request: POST https://api.telegram.org/bot8791274279:AAH0dYWzo43hKxqvG17nAlUVlYkF3qEfYmw/getUpdates "HTTP/1.1 200 OK"
+telegram-1  | INFO:httpx:HTTP Request: POST https://api.telegram.org/bot8791274279:AAH0dYWzo43hKxqvG17nAlUVlYkF3qEfYmw/getUpdates "HTTP/1.1 200 OK"
+telegram-1  | INFO:httpx:HTTP Request: POST https://api.telegram.org/bot8791274279:AAH0dYWzo43hKxqvG17nAlUVlYkF3qEfYmw/getUpdates "HTTP/1.1 200 OK"
+ubuntu@ip-172-31-30-8:~/vpn-platform$ 

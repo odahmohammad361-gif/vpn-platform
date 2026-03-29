@@ -25,6 +25,8 @@ class User(Base):
     plan_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     next_reset_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     telegram_id: Mapped[int | None] = mapped_column(BigInteger, unique=True, nullable=True)
+    payment_status: Mapped[str | None] = mapped_column(String(32), nullable=True)  # pending_payment, paid
+    payment_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)    # expected USDT amount string
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)

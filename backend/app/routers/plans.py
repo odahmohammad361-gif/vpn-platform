@@ -15,6 +15,7 @@ class PlanCreate(BaseModel):
     duration_months: int
     monthly_quota_bytes: int
     price_rmb: float = 0
+    price_usdt: float = 0
 
 
 @router.get("")
@@ -36,9 +37,9 @@ async def create_plan(body: PlanCreate, db: AsyncSession = Depends(get_db)):
 async def seed_default_plans(db: AsyncSession = Depends(get_db)):
     """Seed the 3 default subscription plans if they don't exist."""
     defaults = [
-        {"name": "1 Month", "duration_months": 1, "monthly_quota_bytes": 500_000_000_000, "price_rmb": 250.0},
-        {"name": "3 Months", "duration_months": 3, "monthly_quota_bytes": 500_000_000_000, "price_rmb": 250.0},
-        {"name": "6 Months", "duration_months": 6, "monthly_quota_bytes": 500_000_000_000, "price_rmb": 250.0},
+        {"name": "1 Month",  "duration_months": 1, "monthly_quota_bytes": 500_000_000_000, "price_rmb": 238.0, "price_usdt": 35.0},
+        {"name": "3 Months", "duration_months": 3, "monthly_quota_bytes": 500_000_000_000, "price_rmb": 394.0, "price_usdt": 58.0},
+        {"name": "6 Months", "duration_months": 6, "monthly_quota_bytes": 500_000_000_000, "price_rmb": 605.0, "price_usdt": 89.0},
     ]
     created = []
     for d in defaults:

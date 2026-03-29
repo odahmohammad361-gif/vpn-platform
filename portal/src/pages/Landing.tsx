@@ -45,12 +45,20 @@ export default function Landing() {
           </div>
           <span className="font-bold text-lg tracking-tight">SayMyName97</span>
         </div>
-        <button
-          onClick={() => navigate('/login')}
-          className="px-4 py-2 rounded-lg bg-brand-500 hover:bg-brand-600 text-white text-sm font-medium transition-colors"
-        >
-          Login · 登录
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => navigate('/signup')}
+            className="px-4 py-2 rounded-lg bg-brand-500 hover:bg-brand-600 text-white text-sm font-medium transition-colors"
+          >
+            Sign Up · 注册
+          </button>
+          <button
+            onClick={() => navigate('/login')}
+            className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white text-sm font-medium transition-colors"
+          >
+            Login · 登录
+          </button>
+        </div>
       </nav>
 
       {/* Hero */}
@@ -68,10 +76,16 @@ export default function Landing() {
 
         <div className="flex flex-col sm:flex-row gap-3">
           <button
-            onClick={() => navigate('/login')}
+            onClick={() => navigate('/signup')}
             className="px-8 py-3 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-lg transition-colors"
           >
-            Get Started · 开始使用
+            Subscribe Now · 立即订阅
+          </button>
+          <button
+            onClick={() => navigate('/login')}
+            className="px-8 py-3 rounded-xl bg-white/10 hover:bg-white/15 text-white font-semibold text-lg transition-colors"
+          >
+            Login · 登录
           </button>
         </div>
       </div>

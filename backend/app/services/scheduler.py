@@ -105,7 +105,15 @@ async def reset_monthly_quotas():
             await db.commit()
 
 
+async def check_payments():
+    """Check Binance for incoming USDT deposits and activate matching pending users."""
+    from app.routers.signup import check_binance_deposits
+    async with SessionLocal() as db:
+        await check_binance_deposits(db)
+
+
 def start_scheduler():
     scheduler.add_job(process_traffic, "interval", seconds=60, id="process_traffic")
     scheduler.add_job(reset_monthly_quotas, "interval", minutes=10, id="reset_monthly_quotas")
+    scheduler.add_job(check_payments, "interval", minutes=2, id="check_payments")
     scheduler.start()

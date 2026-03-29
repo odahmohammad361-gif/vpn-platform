@@ -349,6 +349,12 @@ export default function Users() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["users"] }),
   });
 
+  const confirmPayment = useMutation({
+    mutationFn: (id: string) => api.post(`/signup/confirm/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["users"] }),
+    onError: () => alert("Failed to confirm payment."),
+  });
+
   const inputClass = "w-full px-4 py-2.5 rounded-xl bg-white/5 text-white border border-white/10 focus:outline-none focus:border-blue-500/60 transition placeholder-gray-600 text-sm";
 
   return (
@@ -420,13 +426,22 @@ export default function Users() {
                   {u.email && <p className="text-gray-600 text-xs mt-0.5">{u.email}</p>}
                 </td>
                 <td className="px-5 py-4">
-                  <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold ${
-                    u.is_active
-                      ? "bg-green-500/10 text-green-400 border border-green-500/20"
-                      : "bg-red-500/10 text-red-400 border border-red-500/20"
-                  }`}>
-                    {u.is_active ? "Active" : u.disabled_reason ?? "Disabled"}
-                  </span>
+                  <div className="space-y-1">
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold ${
+                      u.is_active
+                        ? "bg-green-500/10 text-green-400 border border-green-500/20"
+                        : "bg-red-500/10 text-red-400 border border-red-500/20"
+                    }`}>
+                      {u.is_active ? "Active" : u.disabled_reason ?? "Disabled"}
+                    </span>
+                    {u.payment_status === "pending_payment" && (
+                      <div className="flex items-center gap-1">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">
+                          💰 {u.payment_ref} USDT
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </td>
                 <td className="px-5 py-4">
                   <QuotaBar used={u.bytes_used} quota={u.quota_bytes} />
@@ -458,6 +473,12 @@ export default function Users() {
                       className="p-2 rounded-lg bg-white/5 hover:bg-orange-500/20 hover:text-orange-400 text-gray-500 transition">
                       {u.is_active ? <Ban className="w-3.5 h-3.5" /> : <CheckCircle className="w-3.5 h-3.5" />}
                     </button>
+                    {u.payment_status === "pending_payment" && (
+                      <button title="Confirm payment manually" onClick={() => { if (confirm(`Confirm payment for ${u.username}?`)) confirmPayment.mutate(u.id); }}
+                        className="p-2 rounded-lg bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-400 border border-yellow-500/20 transition">
+                        💰
+                      </button>
+                    )}
                     <button title="Extend quota" onClick={() => setExtendUser(u)}
                       className="p-2 rounded-lg bg-white/5 hover:bg-green-500/20 hover:text-green-400 text-gray-500 transition">
                       <PlusCircle className="w-3.5 h-3.5" />

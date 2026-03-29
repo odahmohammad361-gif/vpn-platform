@@ -18,7 +18,7 @@ const PRESETS = [
 
 export default function Plans() {
   const qc = useQueryClient();
-  const [form, setForm] = useState({ name: "Monthly", duration_months: 1, quota_gb: 100, price_rmb: 0 });
+  const [form, setForm] = useState({ name: "Monthly", duration_months: 1, quota_gb: 100, price_rmb: 0, price_usdt: 0 });
 
   const { data: plans = [] } = useQuery({
     queryKey: ["plans"],
@@ -73,9 +73,9 @@ export default function Plans() {
       {/* Create form */}
       <div className="glass rounded-2xl p-6 space-y-4">
         <h2 className="text-white font-semibold">New Plan</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {/* Preset picker */}
-          <div className="flex gap-2 sm:col-span-5">
+          <div className="flex gap-2 sm:col-span-3 lg:col-span-6">
             {PRESETS.map((p) => (
               <button
                 key={p.name}
@@ -101,6 +101,9 @@ export default function Plans() {
           <input type="number" className={inputClass} placeholder="Price (¥ RMB)" min="0" step="0.01"
             value={form.price_rmb}
             onChange={(e) => setForm({ ...form, price_rmb: Number(e.target.value) })} />
+          <input type="number" className={inputClass} placeholder="Price ($ USDT)" min="0" step="0.01"
+            value={form.price_usdt}
+            onChange={(e) => setForm({ ...form, price_usdt: Number(e.target.value) })} />
           <button
             onClick={() => createPlan.mutate(form)}
             disabled={createPlan.isPending}
@@ -119,13 +122,14 @@ export default function Plans() {
               <th className="text-left px-5 py-3.5 text-gray-500 text-xs font-semibold uppercase tracking-wider">Name</th>
               <th className="text-left px-5 py-3.5 text-gray-500 text-xs font-semibold uppercase tracking-wider">Duration</th>
               <th className="text-left px-5 py-3.5 text-gray-500 text-xs font-semibold uppercase tracking-wider">Monthly Quota</th>
-              <th className="text-left px-5 py-3.5 text-gray-500 text-xs font-semibold uppercase tracking-wider">Price / Month</th>
+              <th className="text-left px-5 py-3.5 text-gray-500 text-xs font-semibold uppercase tracking-wider">Price RMB</th>
+              <th className="text-left px-5 py-3.5 text-gray-500 text-xs font-semibold uppercase tracking-wider">Price USDT</th>
               <th className="text-right px-5 py-3.5 text-gray-500 text-xs font-semibold uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5">
             {plans.length === 0 && (
-              <tr><td colSpan={5} className="text-center text-gray-600 py-12">No plans yet — click "Seed Default Plans" to add the standard 1/3/6 month plans</td></tr>
+              <tr><td colSpan={6} className="text-center text-gray-600 py-12">No plans yet — click "Seed Default Plans" to add the standard 1/3/6 month plans</td></tr>
             )}
             {plans.map((p: any) => (
               <tr key={p.id} className="hover:bg-white/3 transition-colors">
@@ -133,6 +137,7 @@ export default function Plans() {
                 <td className="px-5 py-4 text-gray-300">{durationLabel[p.duration_months] ?? `${p.duration_months} months`}</td>
                 <td className="px-5 py-4 text-gray-300">{fmtBytes(p.monthly_quota_bytes)} / month</td>
                 <td className="px-5 py-4 text-yellow-400 font-medium">¥{Number(p.price_rmb).toFixed(0)}</td>
+                <td className="px-5 py-4 text-green-400 font-medium">${Number(p.price_usdt).toFixed(0)}</td>
                 <td className="px-5 py-4 text-right">
                   <button
                     onClick={() => { if (confirm("Delete plan?")) deletePlan.mutate(p.id); }}
