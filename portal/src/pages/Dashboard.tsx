@@ -64,6 +64,7 @@ export default function Dashboard() {
   const navigate = useNavigate()
   const [user, setUser] = useState<UserInfo | null>(null)
   const [qrTarget, setQrTarget] = useState<string | null>(null)
+  const [activePlatform, setActivePlatform] = useState('ios')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -238,29 +239,45 @@ export default function Dashboard() {
 
         {/* Subscription Links */}
         <div className="rounded-2xl bg-white/5 border border-white/10 overflow-hidden">
-          <div className="px-6 pt-6 pb-4 border-b border-white/5">
+          <div className="px-6 pt-6 pb-4">
             <h2 className="font-semibold text-white">Subscription Links · 订阅链接</h2>
-            <p className="text-gray-500 text-xs mt-1">Pick your platform and app · 选择你的设备和应用</p>
+            <p className="text-gray-500 text-xs mt-1">Pick your platform · 选择你的设备</p>
           </div>
 
-          {subSections.map((section) => (
-            <div key={section.id} className="border-b border-white/5 last:border-b-0">
-              <div className="px-6 py-3 bg-white/3">
-                <span className="text-sm font-medium text-gray-300">
-                  {section.icon} {section.title_en} · {section.title_zh}
-                </span>
-              </div>
-              <div className="px-6 pb-3 pt-2 space-y-2">
-                {section.links.map((link) => (
-                  <div key={`${section.id}-${link.label_en}`} className="flex items-center justify-between p-2.5 rounded-xl bg-white/5 border border-white/5">
+          {/* Platform tab buttons */}
+          <div className="px-6 pb-4 flex flex-wrap gap-2">
+            {subSections.map((s) => (
+              <button
+                key={s.id}
+                onClick={() => setActivePlatform(s.id)}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+                  activePlatform === s.id
+                    ? 'bg-brand-500 text-white'
+                    : 'bg-white/10 text-gray-400 hover:bg-white/15 hover:text-white'
+                }`}
+              >
+                <span>{s.icon}</span>
+                <span>{s.title_en.split(' /')[0]}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Active platform app list */}
+          {subSections.filter(s => s.id === activePlatform).map((section) => (
+            <div key={section.id} className="px-6 pb-6 space-y-2">
+              <p className="text-xs text-gray-500 mb-3">{section.title_zh}</p>
+              {section.links.map((link) => {
+                const key = `${section.id}-${link.label_en}`
+                return (
+                  <div key={key} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5">
                     <div>
-                      <div className="text-sm text-white">{link.label_en}</div>
+                      <div className="text-sm text-white font-medium">{link.label_en}</div>
                       <div className="text-xs text-gray-500">{link.label_zh}</div>
                     </div>
                     <div className="flex items-center gap-1">
                       <button
-                        onClick={() => setQrTarget(qrTarget === `${section.id}-${link.label_en}` ? null : `${section.id}-${link.label_en}`)}
-                        className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors text-xs px-2"
+                        onClick={() => setQrTarget(qrTarget === key ? null : key)}
+                        className="px-2.5 py-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors text-xs"
                       >
                         QR
                       </button>
@@ -273,19 +290,13 @@ export default function Dashboard() {
                         <Download className="w-4 h-4" />
                       </a>
                     </div>
-                    {qrTarget === `${section.id}-${link.label_en}` && (
-                      <div className="absolute mt-1 z-10 bg-white rounded-xl p-4 shadow-xl flex flex-col items-center">
-                        <QRCodeSVG value={link.url} size={180} />
-                        <p className="text-xs text-gray-500 mt-2">{link.label_en}</p>
-                      </div>
-                    )}
                   </div>
-                ))}
-              </div>
+                )
+              })}
             </div>
           ))}
 
-          {/* QR overlay */}
+          {/* QR modal */}
           {qrTarget && (
             <div
               className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
@@ -293,12 +304,14 @@ export default function Dashboard() {
             >
               <div className="bg-white rounded-2xl p-6 flex flex-col items-center shadow-2xl" onClick={(e) => e.stopPropagation()}>
                 <QRCodeSVG value={
-                  subSections
-                    .flatMap(s => s.links.map(l => ({ key: `${s.id}-${l.label_en}`, url: l.url })))
+                  subSections.flatMap(s => s.links.map(l => ({ key: `${s.id}-${l.label_en}`, url: l.url })))
                     .find(x => x.key === qrTarget)?.url ?? ''
                 } size={220} />
-                <p className="text-xs text-gray-500 mt-3 text-center">Scan with your VPN app · 用VPN应用扫描</p>
-                <button onClick={() => setQrTarget(null)} className="mt-3 text-xs text-gray-400 hover:text-gray-700">Close · 关闭</button>
+                <p className="text-gray-600 text-sm mt-3 font-medium">
+                  {subSections.flatMap(s => s.links.map(l => ({ key: `${s.id}-${l.label_en}`, label: l.label_en }))).find(x => x.key === qrTarget)?.label}
+                </p>
+                <p className="text-xs text-gray-400 mt-1 text-center">Scan with your VPN app · 用VPN应用扫描</p>
+                <button onClick={() => setQrTarget(null)} className="mt-4 text-xs text-gray-400 hover:text-gray-700 underline">Close · 关闭</button>
               </div>
             </div>
           )}
