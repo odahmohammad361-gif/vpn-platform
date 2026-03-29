@@ -3,16 +3,6 @@ import yaml
 from app.utils.base64_utils import build_ss_uri, encode_subscription
 
 
-def _build_hy2_uri(slot: dict) -> str:
-    """hysteria2://password@host:port?insecure=1#name"""
-    from urllib.parse import quote
-    name = quote(slot["name"])
-    return f"hysteria2://{slot['password']}@{slot['host']}:{slot['port']}?insecure=1&sni=bing.com&allowInsecure=1&obfs=salamander&obfs-password=xK9mN2pLq5vR8wB3#{name}"
-
-
-def _is_hy2(slot: dict) -> bool:
-    return slot.get("protocol", "shadowsocks") == "hysteria2"
-
 # China domains/IPs that should go DIRECT (not through VPN)
 # Proxy only blocked/foreign traffic → avoids CAPTCHA from shared IP
 _CLASH_RULES = [
@@ -69,44 +59,23 @@ _SURGE_RULES = [
 
 
 def build_shadowrocket(slots: list[dict]) -> str:
-    """Base64-encoded URI list for Shadowrocket — supports ss:// and hysteria2://."""
-    uris = []
-    for s in slots:
-        if _is_hy2(s):
-            uris.append(_build_hy2_uri(s))
-        else:
-            uris.append(build_ss_uri(s["method"], s["password"], s["host"], s["port"], s["name"]))
+    uris = [build_ss_uri(s["method"], s["password"], s["host"], s["port"], s["name"]) for s in slots]
     return encode_subscription(uris)
 
 
 def build_clash(slots: list[dict]) -> str:
-    """Clash Meta YAML subscription with China-direct routing rules."""
-    proxies = []
-    for s in slots:
-        if _is_hy2(s):
-            proxies.append({
-                "name": s["name"],
-                "type": "hysteria2",
-                "server": s["host"],
-                "port": s["port"],
-                "password": s["password"],
-                "skip-cert-verify": True,
-                "sni": "bing.com",
-                "up": "1000 mbps",
-                "down": "1000 mbps",
-                "obfs": "salamander",
-                "obfs-password": "xK9mN2pLq5vR8wB3",
-            })
-        else:
-            proxies.append({
-                "name": s["name"],
-                "type": "ss",
-                "server": s["host"],
-                "port": s["port"],
-                "cipher": s["method"],
-                "password": s["password"],
-                "udp": True,
-            })
+    proxies = [
+        {
+            "name": s["name"],
+            "type": "ss",
+            "server": s["host"],
+            "port": s["port"],
+            "cipher": s["method"],
+            "password": s["password"],
+            "udp": True,
+        }
+        for s in slots
+    ]
     proxy_names = [s["name"] for s in slots]
     dns_servers = list(dict.fromkeys(s["host"] for s in slots))
     config = {
@@ -133,18 +102,11 @@ def build_clash(slots: list[dict]) -> str:
 
 
 def build_v2rayng(slots: list[dict]) -> str:
-    """Base64-encoded URI list for v2rayNG — supports ss:// and hysteria2://."""
-    uris = []
-    for s in slots:
-        if _is_hy2(s):
-            uris.append(_build_hy2_uri(s))
-        else:
-            uris.append(build_ss_uri(s["method"], s["password"], s["host"], s["port"], s["name"]))
+    uris = [build_ss_uri(s["method"], s["password"], s["host"], s["port"], s["name"]) for s in slots]
     return encode_subscription(uris)
 
 
 def build_surge_conf(slots: list[dict]) -> str:
-    """Shadowrocket/Surge conf with China-direct routing rules."""
     dns_servers = list(dict.fromkeys(s["host"] for s in slots))
     dns_str = "114.114.114.114, 223.5.5.5, " + ", ".join(dns_servers) + ", system"
 
@@ -163,10 +125,7 @@ def build_surge_conf(slots: list[dict]) -> str:
     for s in slots:
         name = s["name"]
         proxy_names.append(name)
-        if _is_hy2(s):
-            lines.append(f"{name} = hysteria2, {s['host']}, {s['port']}, password={s['password']}, skip-cert-verify=true, sni=bing.com")
-        else:
-            lines.append(f"{name} = ss, {s['host']}, {s['port']}, {s['method']}, {s['password']}")
+        lines.append(f"{name} = ss, {s['host']}, {s['port']}, {s['method']}, {s['password']}")
 
     lines += [
         "",

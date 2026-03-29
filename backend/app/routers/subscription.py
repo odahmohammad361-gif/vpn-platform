@@ -87,10 +87,9 @@ async def get_subscription(
         {
             "name": server.name,
             "host": server.host,
-            "port": server.api_port if server.protocol == "hysteria2" else us.port,
+            "port": us.port,
             "password": us.password,
             "method": server.method,
-            "protocol": server.protocol,
         }
         for us, server in rows
     ]
