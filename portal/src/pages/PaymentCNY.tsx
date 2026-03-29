@@ -134,16 +134,10 @@ export default function PaymentCNY() {
           {isWechat ? (
             <img src="/wechat-qr.jpg" alt="WeChat Pay QR" className="w-56 h-56 rounded-xl object-cover" />
           ) : (
-            <div className="w-56 h-56 rounded-xl bg-white/10 border border-white/10 flex items-center justify-center">
-              <div className="text-center">
-                <p className="text-[#1677FF] text-4xl mb-2">支</p>
-                <p className="text-gray-500 text-xs">Alipay QR coming soon</p>
-                <p className="text-gray-600 text-xs">支付宝二维码即将上线</p>
-              </div>
-            </div>
+            <img src="/alipay-qr.jpg" alt="Alipay QR" className="w-56 h-56 rounded-xl object-cover" />
           )}
-          <p className="text-gray-600 text-xs mt-3 text-center">
-            {isWechat ? 'ODAH SUHAIMAT · 奥达' : 'Contact support for Alipay · 联系客服获取支付宝账号'}
+          <p className="text-gray-500 text-xs mt-3 text-center">
+            {isWechat ? 'ODAH SUHAIMAT · 奥达' : 'ODAH SUHAIMAT · 奥达'}
           </p>
         </div>
 
