@@ -7,7 +7,7 @@ def _build_hy2_uri(slot: dict) -> str:
     """hysteria2://password@host:port?insecure=1#name"""
     from urllib.parse import quote
     name = quote(slot["name"])
-    return f"hysteria2://{slot['password']}@{slot['host']}:{slot['port']}?insecure=1&sni=bing.com&allowInsecure=1#{name}"
+    return f"hysteria2://{slot['password']}@{slot['host']}:{slot['port']}?insecure=1&sni=bing.com&allowInsecure=1&obfs=salamander&obfs-password=xK9mN2pLq5vR8wB3#{name}"
 
 
 def _is_hy2(slot: dict) -> bool:
@@ -94,6 +94,8 @@ def build_clash(slots: list[dict]) -> str:
                 "sni": "bing.com",
                 "up": "1000 mbps",
                 "down": "1000 mbps",
+                "obfs": "salamander",
+                "obfs-password": "xK9mN2pLq5vR8wB3",
             })
         else:
             proxies.append({
