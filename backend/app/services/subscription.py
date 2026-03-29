@@ -17,8 +17,8 @@ def _build_vless_uri(slot: dict) -> str:
     sid = slot.get("reality_short_id", "")
     return (
         f"vless://{slot['password']}@{slot['host']}:443"
-        f"?security=reality&sni={REALITY_SNI}&fp=chrome"
-        f"&pbk={pbk}&sid={sid}&type=tcp&flow=xtls-rprx-vision"
+        f"?type=tcp&security=reality&sni={REALITY_SNI}&fp=chrome"
+        f"&pbk={pbk}&sid={sid}&flow=xtls-rprx-vision"
         f"#{name}"
     )
 
