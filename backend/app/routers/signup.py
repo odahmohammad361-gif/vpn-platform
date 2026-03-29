@@ -149,6 +149,7 @@ async def signup(body: SignupRequest, db: AsyncSession = Depends(get_db)):
         "wallet": settings.USDT_WALLET,
         "network": "TRC20 (TRON)",
         "amount_usdt": exact_amount,
+        "amount_rmb": float(plan.price_rmb),
         "note": "Send EXACTLY this amount so we can identify your payment automatically.",
         "expires_in_hours": 24,
     }
@@ -292,6 +293,51 @@ async def manual_confirm(user_id: str, db: AsyncSession = Depends(get_db)):
 
     await _activate_user(user, db)
     return {"status": "activated", "username": user.username}
+
+
+class NotifyPaidRequest(BaseModel):
+    user_id: str
+    method: str  # "alipay" | "wechat"
+
+
+@router.post("/notify-paid")
+async def notify_paid(body: NotifyPaidRequest, db: AsyncSession = Depends(get_db)):
+    """User calls this after paying via Alipay/WeChat — sends admin a Telegram ping."""
+    import uuid as _uuid
+    try:
+        uid = _uuid.UUID(body.user_id)
+    except ValueError:
+        raise HTTPException(400, "Invalid user_id")
+
+    user = await db.get(User, uid)
+    if not user:
+        raise HTTPException(404, "User not found")
+    if user.payment_status == "paid":
+        return {"status": "already_paid"}
+
+    token = settings.TELEGRAM_BOT_TOKEN
+    admin_ids = [int(x) for x in settings.TELEGRAM_ADMIN_IDS.split(",") if x.strip()]
+    method_label = "Alipay · 支付宝" if body.method == "alipay" else "WeChat Pay · 微信支付"
+
+    admin_msg = (
+        f"📲 Payment notification from user!\n\n"
+        f"User: {user.username}\n"
+        f"Email: {user.email}\n"
+        f"Method: {method_label}\n"
+        f"User ID: {str(user.id)}\n\n"
+        f"⚡ Confirm with admin button or:\n"
+        f"/confirm_payment {str(user.id)}"
+    )
+
+    if token:
+        async with httpx.AsyncClient() as client:
+            for admin_id in admin_ids:
+                await client.post(
+                    f"https://api.telegram.org/bot{token}/sendMessage",
+                    json={"chat_id": admin_id, "text": admin_msg},
+                )
+
+    return {"status": "notified"}
 
 
 # ── Binance TRC20 deposit checker (called by scheduler) ──────────────────────

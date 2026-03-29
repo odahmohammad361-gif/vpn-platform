@@ -65,7 +65,7 @@ export default function Signup() {
         plan_id: selectedPlan.id,
         telegram_username: telegramUsername.trim() || null,
       })
-      navigate('/payment', { state: res.data })
+      navigate('/payment-method', { state: res.data })
     } catch (err: any) {
       const detail = err?.response?.data?.detail
       if (err?.response?.status === 409) setApiError(detail || 'Username or email already taken · 用户名或邮箱已被注册')
