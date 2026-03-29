@@ -96,9 +96,10 @@ async def delete_user(user_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     user.deleted_at = datetime.now(timezone.utc)
     user.is_active = False
     user.disabled_reason = "deleted"
-    # Force re-sync so agent removes this user's port from shadowsocks
+    # Remove UserServer rows so ports are freed and agent stops serving this user
     affected = await db.execute(select(UserServer.server_id).where(UserServer.user_id == user_id))
     server_ids = affected.scalars().all()
+    await db.execute(delete(UserServer).where(UserServer.user_id == user_id))
     if server_ids:
         await db.execute(
             update(Server).where(Server.id.in_(server_ids)).values(force_sync=True)
