@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { UserPlus, Trash2, Ban, CheckCircle, RefreshCw, Copy, Check, ServerIcon, X, Package, Link, PlusCircle } from "lucide-react";
+import { Trash2, Ban, CheckCircle, RefreshCw, Copy, Check, ServerIcon, X, Package, Link, PlusCircle } from "lucide-react";
 import api from "@/lib/api";
 
 function formatBytes(b: number) {
@@ -304,8 +304,6 @@ function ExtendQuotaModal({ user, onClose }: { user: any; onClose: () => void })
 
 export default function Users() {
   const qc = useQueryClient();
-  const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState({ username: "", email: "", quota_gb: 0 });
   const [assigningUser, setAssigningUser] = useState<any>(null);
   const [planUser, setPlanUser] = useState<any>(null);
   const [subUser, setSubUser] = useState<any>(null);
@@ -320,16 +318,6 @@ export default function Users() {
   const { data: servers = [] } = useQuery({
     queryKey: ["servers"],
     queryFn: () => api.get("/servers").then((r) => r.data),
-  });
-
-  const createUser = useMutation({
-    mutationFn: ({ quota_gb, email, ...rest }: any) => api.post("/users", {
-      ...rest,
-      email: email || null,
-      quota_bytes: Math.round(quota_gb * 1e9),
-    }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["users"] }); setCreating(false); setForm({ username: "", email: "", quota_gb: 0 }); },
-    onError: (e: any) => alert(e?.response?.data?.detail ?? "Failed to create user."),
   });
 
   const toggleUser = useMutation({
@@ -355,8 +343,6 @@ export default function Users() {
     onError: () => alert("Failed to confirm payment."),
   });
 
-  const inputClass = "w-full px-4 py-2.5 rounded-xl bg-white/5 text-white border border-white/10 focus:outline-none focus:border-blue-500/60 transition placeholder-gray-600 text-sm";
-
   return (
     <div className="space-y-6">
       {planUser && <PlanModal user={planUser} onClose={() => setPlanUser(null)} />}
@@ -366,40 +352,10 @@ export default function Users() {
         <AssignModal user={assigningUser} servers={servers} onClose={() => setAssigningUser(null)} />
       )}
 
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Users</h1>
-          <p className="text-gray-500 text-sm mt-1">{users.length} total users</p>
-        </div>
-        <button onClick={() => setCreating(true)}
-          className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-medium transition-all duration-200">
-          <UserPlus className="w-4 h-4" /> Add User
-        </button>
+      <div>
+        <h1 className="text-2xl font-bold text-white">Users</h1>
+        <p className="text-gray-500 text-sm mt-1">{users.length} total users — new users sign up via the portal</p>
       </div>
-
-      {creating && (
-        <div className="glass rounded-2xl p-6 space-y-4">
-          <h2 className="text-white font-semibold">New User</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <input className={inputClass} placeholder="Username" value={form.username}
-              onChange={(e) => setForm({ ...form, username: e.target.value })} />
-            <input className={inputClass} placeholder="Email (optional)" value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })} />
-            <input type="number" className={inputClass} placeholder="Quota GB (0 = unlimited)" min="0" step="1"
-              value={form.quota_gb} onChange={(e) => setForm({ ...form, quota_gb: Number(e.target.value) })} />
-          </div>
-          <div className="flex gap-2">
-            <button onClick={() => createUser.mutate(form)}
-              className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-xl text-sm font-medium transition">
-              Create
-            </button>
-            <button onClick={() => setCreating(false)}
-              className="px-4 py-2 bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl text-sm transition">
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
 
       <div className="glass rounded-2xl overflow-hidden">
         <table className="w-full text-sm">
@@ -417,7 +373,7 @@ export default function Users() {
               <tr><td colSpan={5} className="text-center text-gray-600 py-12">Loading...</td></tr>
             )}
             {!isLoading && users.length === 0 && (
-              <tr><td colSpan={5} className="text-center text-gray-600 py-12">No users yet — add one above</td></tr>
+              <tr><td colSpan={5} className="text-center text-gray-600 py-12">No users yet</td></tr>
             )}
             {users.map((u: any) => (
               <tr key={u.id} className="hover:bg-white/3 transition-colors">
