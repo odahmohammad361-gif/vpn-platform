@@ -19,9 +19,13 @@ from sqlalchemy import select, func
 from pydantic import BaseModel, field_validator
 from typing import Optional
 import calendar
-from passlib.context import CryptContext
+import bcrypt as _bcrypt
 
-pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
+def _hash_password(password: str) -> str:
+    return _bcrypt.hashpw(password.encode(), _bcrypt.gensalt()).decode()
+
+def _verify_password(password: str, hashed: str) -> bool:
+    return _bcrypt.checkpw(password.encode(), hashed.encode())
 
 from app.database import get_db
 from app.models.user import User, UserServer
@@ -126,7 +130,7 @@ async def signup(body: SignupRequest, db: AsyncSession = Depends(get_db)):
     user = User(
         username=body.username,
         email=body.email,
-        hashed_password=pwd_ctx.hash(body.password),
+        hashed_password=_hash_password(body.password),
         is_active=False,
         disabled_reason="pending_payment",
         payment_status="pending_payment",
