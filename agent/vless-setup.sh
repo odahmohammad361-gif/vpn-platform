@@ -326,23 +326,19 @@ report_traffic() {
 
     local payload
     payload=$(python3 - << PYEOF
-import json, re, sys
+import json, sys
 
 user_map = json.loads('''$user_map''')
-stats_raw = """$stats_output"""
+stats_raw = '''$stats_output'''
 
-entries = []
-# Parse xray stats output: "user>>>email>>>traffic>>>uplink" / "downlink"
 ul_map = {}
 dl_map = {}
 
-for line in stats_raw.splitlines():
-    # Format: name:"user>>>uid>>>traffic>>>uplink" value:12345
-    m_name = re.search(r'name:"([^"]+)"', line)
-    m_val  = re.search(r'value:(\d+)', line)
-    if m_name and m_val:
-        name = m_name.group(1)
-        val  = int(m_val.group(1))
+try:
+    data = json.loads(stats_raw)
+    for stat in data.get('stat', []):
+        name = stat.get('name', '')
+        val  = int(stat.get('value', 0))
         parts = name.split('>>>')
         if len(parts) == 4 and parts[0] == 'user':
             uid = parts[1]
@@ -351,7 +347,11 @@ for line in stats_raw.splitlines():
                 ul_map[uid] = ul_map.get(uid, 0) + val
             elif direction == 'downlink':
                 dl_map[uid] = dl_map.get(uid, 0) + val
+except Exception as e:
+    print(f'[]', flush=True)
+    raise SystemExit(0)
 
+entries = []
 for uid in user_map:
     ul = ul_map.get(uid, 0)
     dl = dl_map.get(uid, 0)
