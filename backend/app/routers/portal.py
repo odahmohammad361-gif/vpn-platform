@@ -3,9 +3,39 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.database import get_db
 from app.models.user import User
+from pydantic import BaseModel
 import uuid
+import bcrypt as _bcrypt
 
 router = APIRouter(prefix="/portal", tags=["portal"])
+
+
+class PortalLoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+@router.post("/login")
+async def portal_login(body: PortalLoginRequest, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(User).where(
+            User.email == body.email.strip().lower(),
+            User.deleted_at.is_(None),
+        )
+    )
+    user = result.scalar_one_or_none()
+    if not user or not user.hashed_password:
+        raise HTTPException(401, "Invalid email or password")
+    if not _bcrypt.checkpw(body.password.encode(), user.hashed_password.encode()):
+        raise HTTPException(401, "Invalid email or password")
+    if user.payment_status == "pending_payment":
+        raise HTTPException(403, "payment_pending")
+    if not user.is_active:
+        raise HTTPException(403, f"Account disabled: {user.disabled_reason or 'contact support'}")
+    return {
+        "subscription_token": str(user.subscription_token),
+        "username": user.username,
+    }
 
 
 async def get_portal_user(
