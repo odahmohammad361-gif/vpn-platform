@@ -5,7 +5,7 @@
 #  Same API as shadowsocks agent — backend unchanged
 # ================================================
 
-API_BASE="REPLACE_WITH_API_BASE/api/agent"
+API_BASE="REPLACE_WITH_API_BASE"
 SERVER_ID="REPLACE_WITH_SERVER_UUID"
 AGENT_SECRET="REPLACE_WITH_AGENT_SECRET"
 HY2_CONFIG="/etc/hysteria/config.yaml"
