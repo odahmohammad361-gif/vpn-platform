@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { QRCodeSVG } from 'qrcode.react'
-import { Shield, LogOut, Copy, Check, Smartphone, Download } from 'lucide-react'
+import { Shield, LogOut, Copy, Check, Smartphone, Download, MessageCircle, Users } from 'lucide-react'
 import axios from 'axios'
 
 const API = import.meta.env.VITE_API_URL || ''
@@ -201,6 +201,69 @@ export default function Dashboard() {
               </p>
             </div>
           )}
+        </div>
+
+        {/* Contact Support */}
+        <div className="p-6 rounded-2xl bg-white/5 border border-white/10">
+          <h2 className="font-semibold text-white mb-1">Contact Support · 联系客服</h2>
+          <p className="text-gray-500 text-xs mb-4">Need help? Reach us via Telegram or WeChat · 需要帮助？通过Telegram或微信联系我们</p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {/* Telegram Bot */}
+            <a
+              href="https://t.me/SayMyName97Bot"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 p-4 rounded-xl bg-[#229ED9]/10 border border-[#229ED9]/30 hover:bg-[#229ED9]/20 transition-colors"
+            >
+              <div className="w-9 h-9 rounded-xl bg-[#229ED9]/20 flex items-center justify-center flex-shrink-0">
+                <MessageCircle className="w-5 h-5 text-[#229ED9]" />
+              </div>
+              <div>
+                <p className="text-white text-sm font-medium">Telegram Bot</p>
+                <p className="text-[#229ED9] text-xs">@SayMyName97Bot</p>
+              </div>
+            </a>
+
+            {/* Telegram Group */}
+            <div className="flex items-center gap-3 p-4 rounded-xl bg-white/5 border border-white/10 opacity-60">
+              <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center flex-shrink-0">
+                <Users className="w-5 h-5 text-gray-400" />
+              </div>
+              <div>
+                <p className="text-white text-sm font-medium">Telegram Group</p>
+                <p className="text-gray-500 text-xs">Coming soon · 即将开放</p>
+              </div>
+            </div>
+
+            {/* WeChat */}
+            <button
+              onClick={() => {
+                const el = document.getElementById('wechat-qr')
+                if (el) el.classList.toggle('hidden')
+              }}
+              className="flex items-center gap-3 p-4 rounded-xl bg-[#07C160]/10 border border-[#07C160]/30 hover:bg-[#07C160]/20 transition-colors"
+            >
+              <div className="w-9 h-9 rounded-xl bg-[#07C160]/20 flex items-center justify-center flex-shrink-0">
+                <svg className="w-5 h-5 text-[#07C160]" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M8.691 2.188C3.891 2.188 0 5.476 0 9.53c0 2.212 1.17 4.203 3.002 5.55a.59.59 0 0 1 .213.665l-.39 1.48c-.019.07-.048.141-.048.213 0 .163.13.295.29.295a.326.326 0 0 0 .167-.054l1.903-1.114a.864.864 0 0 1 .717-.098 10.16 10.16 0 0 0 2.837.403c.276 0 .543-.027.811-.05-.857-2.578.157-4.972 1.932-6.446 1.703-1.415 3.882-1.98 5.853-1.838-.576-3.583-4.196-6.348-8.596-6.348zM5.785 5.991c.642 0 1.162.529 1.162 1.18a1.17 1.17 0 0 1-1.162 1.178A1.17 1.17 0 0 1 4.623 7.17c0-.651.52-1.18 1.162-1.18zm5.813 0c.642 0 1.162.529 1.162 1.18a1.17 1.17 0 0 1-1.162 1.178 1.17 1.17 0 0 1-1.162-1.178c0-.651.52-1.18 1.162-1.18zm5.34 2.867c-1.797-.052-3.746.512-5.28 1.786-1.72 1.428-2.687 3.72-1.78 6.22.942 2.453 3.666 4.229 6.884 4.229.826 0 1.622-.12 2.361-.336a.722.722 0 0 1 .598.082l1.584.926a.272.272 0 0 0 .14.047c.134 0 .24-.11.24-.247 0-.06-.023-.12-.038-.177l-.327-1.233a.49.49 0 0 1 .177-.554C23.024 18.48 24 16.97 24 15.2c0-3.4-3.162-6.337-7.062-6.342zm-3.85 3.274c.535 0 .969.44.969.982a.976.976 0 0 1-.969.983.976.976 0 0 1-.969-.983c0-.542.434-.982.97-.982zm5.306 0c.535 0 .969.44.969.982a.976.976 0 0 1-.969.983.976.976 0 0 1-.969-.983c0-.542.434-.982.969-.982z"/>
+                </svg>
+              </div>
+              <div>
+                <p className="text-white text-sm font-medium">WeChat · 微信</p>
+                <p className="text-[#07C160] text-xs">Scan QR · 扫码添加</p>
+              </div>
+            </button>
+          </div>
+
+          {/* WeChat QR Code - hidden by default */}
+          <div id="wechat-qr" className="hidden mt-4 flex flex-col items-center p-5 rounded-xl bg-white/5 border border-[#07C160]/20">
+            <p className="text-gray-400 text-sm mb-3">Scan to add on WeChat · 扫码添加微信</p>
+            <div className="w-48 h-48 bg-white/10 border border-white/10 rounded-xl flex items-center justify-center">
+              <p className="text-gray-600 text-xs text-center px-4">WeChat QR code<br />coming soon · 微信二维码即将上线</p>
+            </div>
+            <p className="text-gray-600 text-xs mt-2">WeChat ID: SayMyName97 · 微信号: SayMyName97</p>
+          </div>
         </div>
 
         {/* Setup Guide */}

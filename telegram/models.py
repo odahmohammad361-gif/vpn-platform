@@ -14,6 +14,8 @@ class User(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     username: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
+    email: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True)
+    hashed_password: Mapped[str | None] = mapped_column(String(255), nullable=True)
     subscription_token: Mapped[uuid.UUID] = mapped_column(unique=True, default=uuid.uuid4)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     disabled_reason: Mapped[str | None] = mapped_column(String(64))

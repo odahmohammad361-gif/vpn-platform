@@ -8,6 +8,7 @@ Commands:
 import asyncio
 import logging
 import os
+import bcrypt
 from datetime import datetime, timezone
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -95,27 +96,42 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def cmd_login(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not context.args:
-        await update.message.reply_text("Usage: /login YOUR_SUBSCRIPTION_TOKEN")
+    if len(context.args) < 2:
+        await update.message.reply_text(
+            "Usage: /login <email> <password>\n"
+            "Example: /login you@email.com yourpassword"
+        )
         return
 
-    token = context.args[0].strip()
+    email = context.args[0].strip().lower()
+    password = context.args[1].strip()
+
     async with SessionLocal() as db:
-        # Find user by subscription token
         result = await db.execute(
             select(User).where(
-                User.subscription_token == token,
+                User.email == email,
                 User.deleted_at.is_(None),
             )
         )
         user = result.scalar_one_or_none()
 
-        if not user:
-            await update.message.reply_text("Invalid token. Check your subscription URL and try again.")
+        if not user or not user.hashed_password:
+            await update.message.reply_text("❌ Invalid email or password.")
+            return
+
+        if not bcrypt.checkpw(password.encode(), user.hashed_password.encode()):
+            await update.message.reply_text("❌ Invalid email or password.")
+            return
+
+        if user.payment_status == "pending_payment":
+            await update.message.reply_text(
+                "⏳ Your payment is still pending.\n"
+                "Please complete your payment and try again."
+            )
             return
 
         if user.telegram_id and user.telegram_id != update.effective_user.id:
-            await update.message.reply_text("This token is already linked to another Telegram account.")
+            await update.message.reply_text("⚠️ This account is already linked to another Telegram account.")
             return
 
         # Link telegram_id
@@ -126,10 +142,13 @@ async def cmd_login(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         await db.commit()
 
+    base = SUB_BASE_URL.rstrip("/")
+    token = str(user.subscription_token)
     await update.message.reply_text(
-        f"Account linked successfully\\! ✅\n\n"
-        f"Username: *{user.username}*\n\n"
-        "Use /usage to check your data\\.",
+        f"✅ Account linked successfully\\!\n\n"
+        f"Username: *{user.username}*\n"
+        f"Use /usage to check your data\\.\n"
+        f"Use /sub to get your subscription links\\.",
         parse_mode="MarkdownV2",
     )
 
@@ -199,7 +218,7 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = (
         "📖 *Available Commands*\n\n"
         "/start — Welcome message\n"
-        "/login `<token>` — Link your VPN account\n"
+        "/login `<email> <password>` — Link your VPN account\n"
         "/usage — Check data usage & expiry\n"
         "/sub — Get subscription links\n"
         "/help — Show this message"
