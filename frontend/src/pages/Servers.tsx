@@ -30,6 +30,12 @@ export default function Servers() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["servers"] }),
   });
 
+  const toggleProtocol = useMutation({
+    mutationFn: ({ id, protocol }: { id: string; protocol: string }) =>
+      api.patch(`/servers/${id}`, { protocol }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["servers"] }),
+  });
+
   const isOnline = (lastSeen: string | null) => {
     if (!lastSeen) return false;
     return new Date().getTime() - new Date(lastSeen).getTime() < 60000;
@@ -108,6 +114,14 @@ export default function Servers() {
                     </div>
                     <p className="text-gray-400 text-sm font-mono mt-0.5">{s.host}</p>
                     <div className="flex items-center gap-3 mt-1.5 text-gray-600 text-xs">
+                      <span className={`px-1.5 py-0.5 rounded text-xs font-semibold ${
+                        (s.protocol || 'shadowsocks') === 'hysteria2'
+                          ? 'bg-purple-500/15 text-purple-400'
+                          : 'bg-blue-500/15 text-blue-400'
+                      }`}>
+                        {(s.protocol || 'shadowsocks') === 'hysteria2' ? 'Hysteria2' : 'Shadowsocks'}
+                      </span>
+                      <span>·</span>
                       <span>{s.method}</span>
                       <span>·</span>
                       <span>Ports {s.port_range_start}–{s.port_range_end}</span>
@@ -122,6 +136,17 @@ export default function Servers() {
 
                 {/* Actions */}
                 <div className="flex items-center gap-2">
+                  <button
+                    title={`Protocol: ${s.protocol || 'shadowsocks'} — click to switch`}
+                    onClick={() => toggleProtocol.mutate({ id: s.id, protocol: (s.protocol || 'shadowsocks') === 'hysteria2' ? 'shadowsocks' : 'hysteria2' })}
+                    className={`px-2.5 py-1.5 rounded-xl border text-xs font-semibold transition ${
+                      (s.protocol || 'shadowsocks') === 'hysteria2'
+                        ? 'bg-purple-500/10 border-purple-500/20 text-purple-400 hover:bg-blue-500/10 hover:border-blue-500/20 hover:text-blue-400'
+                        : 'bg-blue-500/10 border-blue-500/20 text-blue-400 hover:bg-purple-500/10 hover:border-purple-500/20 hover:text-purple-400'
+                    }`}
+                  >
+                    {(s.protocol || 'shadowsocks') === 'hysteria2' ? 'HY2' : 'SS'}
+                  </button>
                   <button
                     title={s.adguard_enabled ? "AdGuard ON — click to disable" : "AdGuard OFF — click to enable"}
                     onClick={() => toggleAdguard.mutate({ id: s.id, enabled: !s.adguard_enabled })}
