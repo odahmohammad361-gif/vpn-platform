@@ -189,7 +189,7 @@ async def cmd_sub(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user = await get_user_by_telegram(db, update.effective_user.id)
 
     if not user:
-        await update.message.reply_text("Account not linked. Use /login YOUR_TOKEN first.")
+        await update.message.reply_text("Account not linked. Use /login <email> <password> first.")
         return
 
     if not user.is_active:
@@ -199,19 +199,74 @@ async def cmd_sub(update: Update, context: ContextTypes.DEFAULT_TYPE):
     token = str(user.subscription_token)
     base = SUB_BASE_URL.rstrip("/")
 
-    keyboard = [
-        [InlineKeyboardButton("📱 Shadowrocket (iPhone)", url=f"{base}/sub/{token}")],
-        [InlineKeyboardButton("🤖 Clash Meta (Android)", url=f"{base}/sub/{token}?format=clash")],
-        [InlineKeyboardButton("📡 v2rayNG (Android)", url=f"{base}/sub/{token}?format=v2rayng")],
-        [InlineKeyboardButton("⚡ Surge", url=f"{base}/sub/{token}?format=surge")],
+    sub_base   = f"{base}/sub/{token}"
+    clash_url  = f"{sub_base}?format=clash"
+    v2ray_url  = f"{sub_base}?format=v2rayng"
+    surge_url  = f"{sub_base}?format=surge"
+    sfa_url    = f"{sub_base}?format=singbox"
+    raw_url    = sub_base  # Shadowrocket / Quantumult / raw SS
+
+    # ── iOS ──────────────────────────────────────────────────────────────────
+    ios_keyboard = [
+        [InlineKeyboardButton("🚀 Shadowrocket", url=raw_url)],
+        [InlineKeyboardButton("📡 Quantumult X", url=raw_url)],
+        [InlineKeyboardButton("⚡ Surge (iOS)", url=surge_url)],
+        [InlineKeyboardButton("🌐 Stash (Clash)", url=clash_url)],
+        [InlineKeyboardButton("🔷 sing-box (SFA)", url=sfa_url)],
     ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    # ── Android ──────────────────────────────────────────────────────────────
+    android_keyboard = [
+        [InlineKeyboardButton("📡 v2rayNG", url=v2ray_url)],
+        [InlineKeyboardButton("⚡ Clash Meta (ClashX)", url=clash_url)],
+        [InlineKeyboardButton("🔷 sing-box (SFM)", url=sfa_url)],
+        [InlineKeyboardButton("🌐 NekoBox", url=clash_url)],
+    ]
+
+    # ── Windows ──────────────────────────────────────────────────────────────
+    windows_keyboard = [
+        [InlineKeyboardButton("⚡ Clash Verge Rev", url=clash_url)],
+        [InlineKeyboardButton("🔷 sing-box", url=sfa_url)],
+        [InlineKeyboardButton("🌐 NekoRay / NekoBox", url=v2ray_url)],
+        [InlineKeyboardButton("📡 v2rayN", url=v2ray_url)],
+        [InlineKeyboardButton("🚀 Shadowsocks-Windows", url=raw_url)],
+    ]
+
+    # ── macOS ─────────────────────────────────────────────────────────────────
+    mac_keyboard = [
+        [InlineKeyboardButton("🚀 Shadowrocket (Mac)", url=raw_url)],
+        [InlineKeyboardButton("⚡ Surge (macOS)", url=surge_url)],
+        [InlineKeyboardButton("⚡ Clash Verge Rev", url=clash_url)],
+        [InlineKeyboardButton("🔷 sing-box", url=sfa_url)],
+        [InlineKeyboardButton("🌐 ClashX Meta", url=clash_url)],
+    ]
+
+    # ── Linux ─────────────────────────────────────────────────────────────────
+    linux_keyboard = [
+        [InlineKeyboardButton("⚡ Clash Meta (CLI)", url=clash_url)],
+        [InlineKeyboardButton("🔷 sing-box (CLI)", url=sfa_url)],
+        [InlineKeyboardButton("🌐 NekoRay", url=v2ray_url)],
+        [InlineKeyboardButton("📡 v2rayA (WebUI)", url=clash_url)],
+        [InlineKeyboardButton("🚀 Shadowsocks-libev", url=raw_url)],
+    ]
+
+    async def send_section(title: str, keyboard):
+        await update.message.reply_text(
+            title,
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+        )
 
     await update.message.reply_text(
-        "🔗 *Your Subscription Links*\n\nTap to open in your VPN app:",
-        parse_mode="Markdown",
-        reply_markup=reply_markup,
+        "🔗 *Your Subscription Links*\n\n"
+        "Choose your platform and tap the app to import\\.",
+        parse_mode="MarkdownV2",
     )
+    await send_section("📱 *iOS / iPhone / iPad*", ios_keyboard)
+    await send_section("🤖 *Android*", android_keyboard)
+    await send_section("🖥 *Windows*", windows_keyboard)
+    await send_section("🍎 *macOS*", mac_keyboard)
+    await send_section("🐧 *Linux*", linux_keyboard)
 
 
 async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
