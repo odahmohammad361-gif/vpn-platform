@@ -28,7 +28,7 @@ NC='\033[0m'
 
 XRAY_DIR="/etc/xray"
 XRAY_BIN="/usr/local/bin/xray"
-REALITY_SNI="www.apple.com"
+REALITY_SNI="addons.mozilla.org"
 
 echo ""
 echo -e "${CYAN}================================================${NC}"

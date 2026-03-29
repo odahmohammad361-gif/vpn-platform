@@ -3,7 +3,7 @@ import yaml
 from urllib.parse import quote
 from app.utils.base64_utils import build_ss_uri, encode_subscription
 
-REALITY_SNI = "www.apple.com"
+REALITY_SNI = "addons.mozilla.org"
 
 
 def _is_vless(slot: dict) -> bool:
