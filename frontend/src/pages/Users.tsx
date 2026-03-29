@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { UserPlus, Trash2, Ban, CheckCircle, RefreshCw, Copy, Check, ServerIcon, X, Package, Link } from "lucide-react";
+import { UserPlus, Trash2, Ban, CheckCircle, RefreshCw, Copy, Check, ServerIcon, X, Package, Link, PlusCircle } from "lucide-react";
 import api from "@/lib/api";
 
 function formatBytes(b: number) {
@@ -67,7 +67,7 @@ function PlanModal({ user, onClose }: { user: any; onClose: () => void }) {
             <div key={p.id} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10">
               <div>
                 <p className="text-white text-sm font-medium">{p.name}</p>
-                <p className="text-gray-500 text-xs">{durationLabel[p.duration_months] ?? `${p.duration_months} months`} · {fmtBytes(p.monthly_quota_bytes)}/mo</p>
+                <p className="text-gray-500 text-xs">{durationLabel[p.duration_months] ?? `${p.duration_months} months`} · {fmtBytes(p.monthly_quota_bytes)}/mo · <span className="text-yellow-400">¥{Number(p.price_rmb).toFixed(0)}/mo</span></p>
               </div>
               <button
                 onClick={() => assign.mutate(p.id)}
@@ -102,12 +102,12 @@ function AssignModal({ user, servers, onClose }: { user: any; servers: any[]; on
 
   const assign = useMutation({
     mutationFn: (serverId: string) => api.post(`/users/${user.id}/servers/${serverId}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["users"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["user-servers", user.id] }),
   });
 
   const remove = useMutation({
     mutationFn: (serverId: string) => api.delete(`/users/${user.id}/servers/${serverId}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["users"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["user-servers", user.id] }),
   });
 
   const { data: userServers = [] } = useQuery({
@@ -117,6 +117,14 @@ function AssignModal({ user, servers, onClose }: { user: any; servers: any[]; on
 
   const assignedIds = new Set(userServers.map((us: any) => us.server_id));
 
+  const unassignedServers = servers.filter((s: any) => !assignedIds.has(s.id));
+  const assignAll = async () => {
+    for (const s of unassignedServers) {
+      await api.post(`/users/${user.id}/servers/${s.id}`).catch(() => {});
+    }
+    qc.invalidateQueries({ queryKey: ["user-servers", user.id] });
+  };
+
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
       <div className="glass rounded-2xl p-6 w-full max-w-md mx-4">
@@ -125,9 +133,19 @@ function AssignModal({ user, servers, onClose }: { user: any; servers: any[]; on
             <h2 className="text-white font-semibold">Assign Servers</h2>
             <p className="text-gray-500 text-sm mt-0.5">{user.username}</p>
           </div>
-          <button onClick={onClose} className="p-2 rounded-xl hover:bg-white/10 text-gray-500 transition">
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            {unassignedServers.length > 0 && (
+              <button
+                onClick={assignAll}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-green-500/10 text-green-400 border border-green-500/20 hover:bg-green-500/20 transition"
+              >
+                Assign All
+              </button>
+            )}
+            <button onClick={onClose} className="p-2 rounded-xl hover:bg-white/10 text-gray-500 transition">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         <div className="space-y-2">
@@ -219,6 +237,71 @@ function SubModal({ user, onClose }: { user: any; onClose: () => void }) {
   );
 }
 
+function ExtendQuotaModal({ user, onClose }: { user: any; onClose: () => void }) {
+  const qc = useQueryClient();
+  const [extraGb, setExtraGb] = useState(50);
+
+  const extend = useMutation({
+    mutationFn: () => api.post(`/users/${user.id}/extend-quota?extra_gb=${extraGb}`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["users"] }); onClose(); },
+    onError: () => alert("Failed to extend quota."),
+  });
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="glass rounded-2xl p-6 w-full max-w-sm mx-4">
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h2 className="text-white font-semibold">Extend Quota</h2>
+            <p className="text-gray-500 text-sm mt-0.5">{user.username}</p>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-xl hover:bg-white/10 text-gray-500 transition">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <p className="text-gray-400 text-sm mb-4">
+          Current quota: <span className="text-white font-medium">{user.quota_bytes === 0 ? "Unlimited" : formatBytes(user.quota_bytes)}</span>
+        </p>
+        <div className="space-y-3">
+          <div>
+            <label className="text-gray-500 text-xs block mb-1.5">Extra GB to add</label>
+            <input
+              type="number"
+              min="1"
+              step="1"
+              value={extraGb}
+              onChange={(e) => setExtraGb(Number(e.target.value))}
+              className="w-full px-4 py-2.5 rounded-xl bg-white/5 text-white border border-white/10 focus:outline-none focus:border-blue-500/60 transition text-sm"
+            />
+          </div>
+          <div className="flex gap-2 pt-1">
+            {[50, 100, 200, 500].map(gb => (
+              <button
+                key={gb}
+                onClick={() => setExtraGb(gb)}
+                className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition ${
+                  extraGb === gb
+                    ? "bg-blue-600/20 text-blue-400 border-blue-500/40"
+                    : "bg-white/5 text-gray-400 border-white/10 hover:bg-white/10"
+                }`}
+              >
+                +{gb}GB
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => extend.mutate()}
+            disabled={extend.isPending || extraGb <= 0}
+            className="w-full px-4 py-2.5 bg-green-600 hover:bg-green-500 text-white rounded-xl text-sm font-medium transition disabled:opacity-50"
+          >
+            Add {extraGb} GB
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Users() {
   const qc = useQueryClient();
   const [creating, setCreating] = useState(false);
@@ -226,6 +309,7 @@ export default function Users() {
   const [assigningUser, setAssigningUser] = useState<any>(null);
   const [planUser, setPlanUser] = useState<any>(null);
   const [subUser, setSubUser] = useState<any>(null);
+  const [extendUser, setExtendUser] = useState<any>(null);
 
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["users"],
@@ -271,6 +355,7 @@ export default function Users() {
     <div className="space-y-6">
       {planUser && <PlanModal user={planUser} onClose={() => setPlanUser(null)} />}
       {subUser && <SubModal user={subUser} onClose={() => setSubUser(null)} />}
+      {extendUser && <ExtendQuotaModal user={extendUser} onClose={() => setExtendUser(null)} />}
       {assigningUser && (
         <AssignModal user={assigningUser} servers={servers} onClose={() => setAssigningUser(null)} />
       )}
@@ -372,6 +457,10 @@ export default function Users() {
                       onClick={() => toggleUser.mutate({ id: u.id, active: u.is_active })}
                       className="p-2 rounded-lg bg-white/5 hover:bg-orange-500/20 hover:text-orange-400 text-gray-500 transition">
                       {u.is_active ? <Ban className="w-3.5 h-3.5" /> : <CheckCircle className="w-3.5 h-3.5" />}
+                    </button>
+                    <button title="Extend quota" onClick={() => setExtendUser(u)}
+                      className="p-2 rounded-lg bg-white/5 hover:bg-green-500/20 hover:text-green-400 text-gray-500 transition">
+                      <PlusCircle className="w-3.5 h-3.5" />
                     </button>
                     <button title="Reset quota" onClick={() => resetQuota.mutate(u.id)}
                       className="p-2 rounded-lg bg-white/5 hover:bg-purple-500/20 hover:text-purple-400 text-gray-500 transition">

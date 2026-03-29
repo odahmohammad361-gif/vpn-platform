@@ -244,9 +244,68 @@ async def assign_plan(user_id: uuid.UUID, plan_id: uuid.UUID, db: AsyncSession =
     user.next_reset_at = _add_months(now, 1)
     user.is_active = True
     user.disabled_reason = None
+
+    # Auto-assign ALL active servers that are not already assigned
+    all_servers_result = await db.execute(select(Server).where(Server.is_active == True))
+    all_servers = all_servers_result.scalars().all()
+
+    existing_result = await db.execute(
+        select(UserServer.server_id).where(UserServer.user_id == user_id)
+    )
+    already_assigned = set(existing_result.scalars().all())
+
+    for server in all_servers:
+        if server.id in already_assigned:
+            continue
+        # Reuse existing port/password if user has them on another server
+        existing_slot_result = await db.execute(
+            select(UserServer.port, UserServer.password).where(UserServer.user_id == user_id).limit(1)
+        )
+        existing_slot = existing_slot_result.first()
+        shared_password = existing_slot.password if existing_slot else secrets.token_hex(16)
+
+        max_port_result = await db.execute(
+            select(func.max(UserServer.port)).where(UserServer.server_id == server.id)
+        )
+        max_port = max_port_result.scalar() or (server.port_range_start - 1)
+
+        if existing_slot and existing_slot.port not in set(
+            (await db.execute(select(UserServer.port).where(UserServer.server_id == server.id))).scalars().all()
+        ):
+            free_port = existing_slot.port
+        else:
+            free_port = max_port + 1
+
+        if free_port > server.port_range_end:
+            continue  # Skip if no free ports on this server
+
+        slot = UserServer(
+            user_id=user_id,
+            server_id=server.id,
+            port=free_port,
+            password=shared_password,
+        )
+        db.add(slot)
+
     await db.commit()
     await db.refresh(user)
     return user
+
+
+@router.post("/{user_id}/extend-quota")
+async def extend_quota(user_id: uuid.UUID, extra_gb: float, db: AsyncSession = Depends(get_db)):
+    """Add extra GB to a user's quota without resetting plan or bytes_used."""
+    user = await db.get(User, user_id)
+    if not user:
+        raise HTTPException(404, "User not found")
+    if extra_gb <= 0:
+        raise HTTPException(400, "extra_gb must be positive")
+    user.quota_bytes += int(extra_gb * 1e9)
+    user.is_active = True
+    user.disabled_reason = None
+    await db.commit()
+    await db.refresh(user)
+    return {"quota_bytes": user.quota_bytes, "added_bytes": int(extra_gb * 1e9)}
 
 
 @router.post("/{user_id}/remove-plan")
