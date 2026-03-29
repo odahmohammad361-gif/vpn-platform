@@ -90,6 +90,7 @@ async def get_subscription(
             "port": us.port,
             "password": us.password,
             "method": server.method,
+            "protocol": server.protocol,
         }
         for us, server in rows
     ]

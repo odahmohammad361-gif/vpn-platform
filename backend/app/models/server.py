@@ -15,6 +15,7 @@ class Server(Base):
     agent_secret: Mapped[str] = mapped_column(Text, nullable=False)
     port_range_start: Mapped[int] = mapped_column(Integer, default=20000)
     port_range_end: Mapped[int] = mapped_column(Integer, default=29999)
+    protocol: Mapped[str] = mapped_column(String(32), default="shadowsocks")  # shadowsocks | hysteria2
     method: Mapped[str] = mapped_column(String(64), default="chacha20-ietf-poly1305")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     adguard_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
