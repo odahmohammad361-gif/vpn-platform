@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { QRCodeSVG } from 'qrcode.react'
-import { Shield, LogOut, Copy, Check, Smartphone, Download, MessageCircle, Users } from 'lucide-react'
+import { Shield, LogOut, Copy, Check, Download, MessageCircle, Users } from 'lucide-react'
 import axios from 'axios'
 
 const API = import.meta.env.VITE_API_URL || ''
@@ -50,7 +50,14 @@ interface SubLink {
   label_en: string
   label_zh: string
   url: string
-  hint: string
+}
+
+interface SubSection {
+  id: string
+  title_en: string
+  title_zh: string
+  icon: string
+  links: SubLink[]
 }
 
 export default function Dashboard() {
@@ -87,11 +94,81 @@ export default function Dashboard() {
   const base = `${window.location.protocol}//${window.location.hostname}:8080`
   const token = user.subscription_token
 
-  const subLinks: SubLink[] = [
-    { label_en: 'Shadowrocket (iPhone)', label_zh: 'Shadowrocket（iPhone）', url: `${base}/sub/${token}`, hint: 'iOS' },
-    { label_en: 'Clash Meta (Android)', label_zh: 'Clash Meta（安卓）', url: `${base}/sub/${token}?format=clash`, hint: 'Android' },
-    { label_en: 'v2rayNG (Android)', label_zh: 'v2rayNG（安卓）', url: `${base}/sub/${token}?format=v2rayng`, hint: 'Android' },
-    { label_en: 'Surge / Shadowrocket conf', label_zh: 'Surge / Shadowrocket 配置', url: `${base}/sub/${token}?format=surge`, hint: 'iOS/Mac' },
+  const raw   = `${base}/sub/${token}`
+  const clash = `${base}/sub/${token}?format=clash`
+  const v2ray = `${base}/sub/${token}?format=v2rayng`
+  const surge = `${base}/sub/${token}?format=surge`
+  const sbox  = `${base}/sub/${token}?format=singbox`
+
+  const subSections: SubSection[] = [
+    {
+      id: 'ios',
+      title_en: 'iOS / iPhone / iPad',
+      title_zh: 'iOS 苹果手机/平板',
+      icon: '📱',
+      links: [
+        { label_en: 'Shadowrocket', label_zh: 'Shadowrocket（小火箭）', url: raw },
+        { label_en: 'Quantumult X', label_zh: 'Quantumult X', url: raw },
+        { label_en: 'Surge', label_zh: 'Surge', url: surge },
+        { label_en: 'Stash (Clash)', label_zh: 'Stash（Clash内核）', url: clash },
+        { label_en: 'sing-box (SFA)', label_zh: 'sing-box / SFA', url: sbox },
+      ],
+    },
+    {
+      id: 'android',
+      title_en: 'Android',
+      title_zh: '安卓手机',
+      icon: '🤖',
+      links: [
+        { label_en: 'v2rayNG', label_zh: 'v2rayNG', url: v2ray },
+        { label_en: 'Clash Meta / FlClash', label_zh: 'Clash Meta / FlClash', url: clash },
+        { label_en: 'sing-box (SFM)', label_zh: 'sing-box / SFM', url: sbox },
+        { label_en: 'NekoBox', label_zh: 'NekoBox', url: clash },
+        { label_en: 'Hiddify', label_zh: 'Hiddify', url: clash },
+      ],
+    },
+    {
+      id: 'windows',
+      title_en: 'Windows',
+      title_zh: 'Windows 电脑',
+      icon: '🖥',
+      links: [
+        { label_en: 'Clash Verge Rev', label_zh: 'Clash Verge Rev', url: clash },
+        { label_en: 'Hiddify', label_zh: 'Hiddify', url: clash },
+        { label_en: 'sing-box', label_zh: 'sing-box', url: sbox },
+        { label_en: 'NekoRay / NekoBox', label_zh: 'NekoRay / NekoBox', url: v2ray },
+        { label_en: 'v2rayN', label_zh: 'v2rayN', url: v2ray },
+        { label_en: 'Shadowsocks-Windows', label_zh: 'Shadowsocks Windows 客户端', url: raw },
+      ],
+    },
+    {
+      id: 'mac',
+      title_en: 'macOS',
+      title_zh: 'Mac 电脑',
+      icon: '🍎',
+      links: [
+        { label_en: 'Shadowrocket (Mac)', label_zh: 'Shadowrocket（Mac）', url: raw },
+        { label_en: 'Surge (macOS)', label_zh: 'Surge（macOS）', url: surge },
+        { label_en: 'Clash Verge Rev', label_zh: 'Clash Verge Rev', url: clash },
+        { label_en: 'ClashX Meta', label_zh: 'ClashX Meta', url: clash },
+        { label_en: 'sing-box', label_zh: 'sing-box', url: sbox },
+        { label_en: 'Hiddify', label_zh: 'Hiddify', url: clash },
+      ],
+    },
+    {
+      id: 'linux',
+      title_en: 'Linux',
+      title_zh: 'Linux 系统',
+      icon: '🐧',
+      links: [
+        { label_en: 'Clash Meta (CLI)', label_zh: 'Clash Meta 命令行', url: clash },
+        { label_en: 'sing-box (CLI)', label_zh: 'sing-box 命令行', url: sbox },
+        { label_en: 'NekoRay', label_zh: 'NekoRay', url: v2ray },
+        { label_en: 'v2rayA (Web UI)', label_zh: 'v2rayA（网页控制台）', url: clash },
+        { label_en: 'Hiddify', label_zh: 'Hiddify', url: clash },
+        { label_en: 'Shadowsocks-libev', label_zh: 'Shadowsocks-libev', url: raw },
+      ],
+    },
   ]
 
   const quota = user.quota_bytes
@@ -160,45 +237,69 @@ export default function Dashboard() {
         </div>
 
         {/* Subscription Links */}
-        <div className="p-6 rounded-2xl bg-white/5 border border-white/10">
-          <h2 className="font-semibold text-white mb-4">Subscription Links · 订阅链接</h2>
-          <div className="space-y-3">
-            {subLinks.map((link) => (
-              <div key={link.url} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5">
-                <div>
-                  <div className="text-sm text-white flex items-center gap-2">
-                    <Smartphone className="w-4 h-4 text-brand-400" />
-                    {link.label_en}
-                  </div>
-                  <div className="text-xs text-gray-500 mt-0.5">{link.label_zh}</div>
-                </div>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => setQrTarget(qrTarget === link.url ? null : link.url)}
-                    className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors text-xs px-2"
-                  >
-                    QR
-                  </button>
-                  <CopyButton text={link.url} />
-                  <a
-                    href={link.url}
-                    className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
-                    title="Open link"
-                  >
-                    <Download className="w-4 h-4" />
-                  </a>
-                </div>
-              </div>
-            ))}
+        <div className="rounded-2xl bg-white/5 border border-white/10 overflow-hidden">
+          <div className="px-6 pt-6 pb-4 border-b border-white/5">
+            <h2 className="font-semibold text-white">Subscription Links · 订阅链接</h2>
+            <p className="text-gray-500 text-xs mt-1">Pick your platform and app · 选择你的设备和应用</p>
           </div>
 
-          {/* QR Code */}
+          {subSections.map((section) => (
+            <div key={section.id} className="border-b border-white/5 last:border-b-0">
+              <div className="px-6 py-3 bg-white/3">
+                <span className="text-sm font-medium text-gray-300">
+                  {section.icon} {section.title_en} · {section.title_zh}
+                </span>
+              </div>
+              <div className="px-6 pb-3 pt-2 space-y-2">
+                {section.links.map((link) => (
+                  <div key={`${section.id}-${link.label_en}`} className="flex items-center justify-between p-2.5 rounded-xl bg-white/5 border border-white/5">
+                    <div>
+                      <div className="text-sm text-white">{link.label_en}</div>
+                      <div className="text-xs text-gray-500">{link.label_zh}</div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setQrTarget(qrTarget === `${section.id}-${link.label_en}` ? null : `${section.id}-${link.label_en}`)}
+                        className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors text-xs px-2"
+                      >
+                        QR
+                      </button>
+                      <CopyButton text={link.url} />
+                      <a
+                        href={link.url}
+                        className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+                        title="Import"
+                      >
+                        <Download className="w-4 h-4" />
+                      </a>
+                    </div>
+                    {qrTarget === `${section.id}-${link.label_en}` && (
+                      <div className="absolute mt-1 z-10 bg-white rounded-xl p-4 shadow-xl flex flex-col items-center">
+                        <QRCodeSVG value={link.url} size={180} />
+                        <p className="text-xs text-gray-500 mt-2">{link.label_en}</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+
+          {/* QR overlay */}
           {qrTarget && (
-            <div className="mt-4 flex flex-col items-center p-4 rounded-xl bg-white border border-white/10">
-              <QRCodeSVG value={qrTarget} size={200} />
-              <p className="text-xs text-gray-500 mt-2 text-center">
-                Scan with your VPN app · 用VPN应用扫描
-              </p>
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+              onClick={() => setQrTarget(null)}
+            >
+              <div className="bg-white rounded-2xl p-6 flex flex-col items-center shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                <QRCodeSVG value={
+                  subSections
+                    .flatMap(s => s.links.map(l => ({ key: `${s.id}-${l.label_en}`, url: l.url })))
+                    .find(x => x.key === qrTarget)?.url ?? ''
+                } size={220} />
+                <p className="text-xs text-gray-500 mt-3 text-center">Scan with your VPN app · 用VPN应用扫描</p>
+                <button onClick={() => setQrTarget(null)} className="mt-3 text-xs text-gray-400 hover:text-gray-700">Close · 关闭</button>
+              </div>
             </div>
           )}
         </div>
@@ -274,7 +375,7 @@ export default function Dashboard() {
               <span className="w-6 h-6 rounded-full bg-brand-500/20 text-brand-400 flex items-center justify-center text-xs flex-shrink-0">1</span>
               <div>
                 <p className="text-white">Download your VPN app · 下载VPN应用</p>
-                <p className="text-gray-500 text-xs mt-0.5">iPhone: Shadowrocket · Android: Clash Meta or v2rayNG</p>
+                <p className="text-gray-500 text-xs mt-0.5">iPhone: Shadowrocket · Android: v2rayNG / Clash Meta · Windows/Mac: Clash Verge Rev · Linux: Clash Meta CLI</p>
               </div>
             </div>
             <div className="flex gap-3">
