@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     BINANCE_API_SECRET: str = ""
     TELEGRAM_BOT_TOKEN: str = ""
     TELEGRAM_ADMIN_IDS: str = ""
+    BRAND_NAME: str = "VPN"
 
     class Config:
         env_file = ".env"

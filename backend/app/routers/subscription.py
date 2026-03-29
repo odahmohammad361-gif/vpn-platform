@@ -8,6 +8,7 @@ from app.database import get_db
 from app.models.user import User, UserServer
 from app.models.server import Server
 from app.services.subscription import build_shadowrocket, build_clash, build_v2rayng, build_surge_conf
+from app.config import settings
 
 router = APIRouter(prefix="/sub", tags=["subscription"])
 
@@ -55,6 +56,8 @@ def _respond(slots: list[dict], format: str, user: User | None = None):
         resp = PlainTextResponse(build_shadowrocket(slots))
     if user:
         resp.headers["Subscription-Userinfo"] = _userinfo_header(user)
+        resp.headers["profile-title"] = settings.BRAND_NAME
+        resp.headers["profile-update-interval"] = "24"
     return resp
 
 
