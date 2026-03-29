@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { QRCodeSVG } from 'qrcode.react'
-import { Shield, LogOut, Copy, Check, Download, MessageCircle, Users } from 'lucide-react'
+import { Shield, LogOut, Copy, Check, MessageCircle, Users } from 'lucide-react'
 import axios from 'axios'
 
 const API = import.meta.env.VITE_API_URL || ''
@@ -35,9 +35,25 @@ function fmtExpiry(expires_at: string | null) {
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false)
   function copy() {
-    navigator.clipboard.writeText(text)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(() => {
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      })
+    } else {
+      // HTTP fallback
+      const ta = document.createElement('textarea')
+      ta.value = text
+      ta.style.position = 'fixed'
+      ta.style.opacity = '0'
+      document.body.appendChild(ta)
+      ta.focus()
+      ta.select()
+      document.execCommand('copy')
+      document.body.removeChild(ta)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
   }
   return (
     <button onClick={copy} className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors">
@@ -282,13 +298,6 @@ export default function Dashboard() {
                         QR
                       </button>
                       <CopyButton text={link.url} />
-                      <a
-                        href={link.url}
-                        className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
-                        title="Import"
-                      >
-                        <Download className="w-4 h-4" />
-                      </a>
                     </div>
                   </div>
                 )
