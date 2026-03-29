@@ -7,7 +7,7 @@ def _build_hy2_uri(slot: dict) -> str:
     """hysteria2://password@host:port?insecure=1#name"""
     from urllib.parse import quote
     name = quote(slot["name"])
-    return f"hysteria2://{slot['password']}@{slot['host']}:{slot['port']}?insecure=1&sni=bing.com#{name}"
+    return f"hysteria2://{slot['password']}@{slot['host']}:{slot['port']}?insecure=1&sni=bing.com&allowInsecure=1#{name}"
 
 
 def _is_hy2(slot: dict) -> bool:
