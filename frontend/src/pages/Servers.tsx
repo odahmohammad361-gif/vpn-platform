@@ -8,7 +8,7 @@ export default function Servers() {
   const [creating, setCreating] = useState(false);
   const [editingReality, setEditingReality] = useState<string | null>(null);
   const [realityForm, setRealityForm] = useState({ reality_public_key: "", reality_short_id: "" });
-  const [form, setForm] = useState({ name: "", host: "", api_port: 8080, port_range_start: 20000, port_range_end: 29999 });
+  const [form, setForm] = useState({ name: "", host: "", api_port: 8080, port_range_start: 20000, port_range_end: 29999, protocol: "shadowsocks" });
 
   const { data: servers = [] } = useQuery({
     queryKey: ["servers"],
@@ -70,6 +70,28 @@ export default function Servers() {
               onChange={(e) => setForm({ ...form, name: e.target.value })} />
             <input className={inputClass} placeholder="Host IP (e.g. 31.220.80.56)" value={form.host}
               onChange={(e) => setForm({ ...form, host: e.target.value })} />
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setForm({ ...form, protocol: "shadowsocks" })}
+              className={`px-4 py-2 rounded-xl text-sm font-semibold border transition ${
+                form.protocol === "shadowsocks"
+                  ? "bg-blue-600 border-blue-500 text-white"
+                  : "bg-white/5 border-white/10 text-gray-400 hover:bg-white/10"
+              }`}
+            >
+              Shadowsocks
+            </button>
+            <button
+              onClick={() => setForm({ ...form, protocol: "vless" })}
+              className={`px-4 py-2 rounded-xl text-sm font-semibold border transition ${
+                form.protocol === "vless"
+                  ? "bg-purple-600 border-purple-500 text-white"
+                  : "bg-white/5 border-white/10 text-gray-400 hover:bg-white/10"
+              }`}
+            >
+              VLESS + Reality
+            </button>
           </div>
           <div className="flex gap-2">
             <button onClick={() => createServer.mutate(form)}
