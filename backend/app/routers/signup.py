@@ -14,6 +14,7 @@ import logging
 import re
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from pydantic import BaseModel, field_validator
@@ -114,9 +115,9 @@ async def signup(body: SignupRequest, db: AsyncSession = Depends(get_db)):
     if existing.scalar_one_or_none():
         raise HTTPException(409, "Username already taken · 用户名已被使用")
 
-    # Check email taken
+    # Check email taken (including soft-deleted — email column has unique constraint)
     email_existing = await db.execute(
-        select(User).where(User.email == body.email, User.deleted_at.is_(None))
+        select(User).where(User.email == body.email)
     )
     if email_existing.scalar_one_or_none():
         raise HTTPException(409, "Email already registered · 邮箱已注册")
@@ -139,8 +140,12 @@ async def signup(body: SignupRequest, db: AsyncSession = Depends(get_db)):
         notes=body.telegram_username or None,
     )
     db.add(user)
-    await db.commit()
-    await db.refresh(user)
+    try:
+        await db.commit()
+        await db.refresh(user)
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(409, "Email or username already registered · 邮箱或用户名已注册")
 
     return {
         "user_id": str(user.id),
