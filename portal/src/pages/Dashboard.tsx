@@ -334,7 +334,7 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {/* Telegram Bot */}
             <a
-              href="https://t.me/SayMyName97Bot"
+              href="https://t.me/SayMyName97VPN_bot"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-3 p-4 rounded-xl bg-[#229ED9]/10 border border-[#229ED9]/30 hover:bg-[#229ED9]/20 transition-colors"
@@ -344,20 +344,25 @@ export default function Dashboard() {
               </div>
               <div>
                 <p className="text-white text-sm font-medium">Telegram Bot</p>
-                <p className="text-[#229ED9] text-xs">@SayMyName97Bot</p>
+                <p className="text-[#229ED9] text-xs">@SayMyName97VPN_bot</p>
               </div>
             </a>
 
-            {/* Telegram Group */}
-            <div className="flex items-center gap-3 p-4 rounded-xl bg-white/5 border border-white/10 opacity-60">
-              <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center flex-shrink-0">
-                <Users className="w-5 h-5 text-gray-400" />
+            {/* Telegram Channel */}
+            <a
+              href="https://t.me/SayMyNameVPN"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 p-4 rounded-xl bg-[#229ED9]/10 border border-[#229ED9]/30 hover:bg-[#229ED9]/20 transition-colors"
+            >
+              <div className="w-9 h-9 rounded-xl bg-[#229ED9]/20 flex items-center justify-center flex-shrink-0">
+                <Users className="w-5 h-5 text-[#229ED9]" />
               </div>
               <div>
-                <p className="text-white text-sm font-medium">Telegram Group</p>
-                <p className="text-gray-500 text-xs">Coming soon · 即将开放</p>
+                <p className="text-white text-sm font-medium">Telegram Channel</p>
+                <p className="text-[#229ED9] text-xs">@SayMyNameVPN</p>
               </div>
-            </div>
+            </a>
 
             {/* WeChat */}
             <button
@@ -382,10 +387,8 @@ export default function Dashboard() {
           {/* WeChat QR Code - hidden by default */}
           <div id="wechat-qr" className="hidden mt-4 flex flex-col items-center p-5 rounded-xl bg-white/5 border border-[#07C160]/20">
             <p className="text-gray-400 text-sm mb-3">Scan to add on WeChat · 扫码添加微信</p>
-            <div className="w-48 h-48 bg-white/10 border border-white/10 rounded-xl flex items-center justify-center">
-              <p className="text-gray-600 text-xs text-center px-4">WeChat QR code<br />coming soon · 微信二维码即将上线</p>
-            </div>
-            <p className="text-gray-600 text-xs mt-2">WeChat ID: SayMyName97 · 微信号: SayMyName97</p>
+            <img src="/wechat-qr.jpg" alt="WeChat QR" className="w-56 h-56 rounded-xl object-cover" />
+            <p className="text-gray-500 text-xs mt-2">ODAH SUHAIMAT · 奥达</p>
           </div>
         </div>
 
