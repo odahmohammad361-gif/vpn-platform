@@ -167,7 +167,7 @@ print(f"[sync] Config written with {len(users)} user(s)")
 PYEOF
 
     # Restart hysteria2
-    systemctl restart hysteria2
+    systemctl restart hysteria-server
     sleep 1
     echo "[sync] Sync complete"
 
@@ -176,10 +176,10 @@ PYEOF
 
 # ── Watchdog ──────────────────────────────────────
 watchdog() {
-    if ! systemctl is-active --quiet hysteria2; then
+    if ! systemctl is-active --quiet hysteria-server; then
         echo "[watchdog] Hysteria2 is down — restarting"
         report_traffic
-        systemctl restart hysteria2
+        systemctl restart hysteria-server
         sleep 2
         echo "[watchdog] Hysteria2 restarted"
     fi
