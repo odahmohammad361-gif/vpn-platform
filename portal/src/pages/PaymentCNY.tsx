@@ -10,10 +10,6 @@ type Method = 'alipay' | 'wechat'
 export default function PaymentCNY() {
   const { state } = useLocation()
   const navigate = useNavigate()
-  const [method, setMethod] = useState<Method>(info?.defaultMethod ?? 'wechat')
-  const [notified, setNotified] = useState(false)
-  const [notifying, setNotifying] = useState(false)
-  const [status, setStatus] = useState<'pending' | 'paid'>('pending')
 
   const info = state as {
     user_id: string
@@ -22,6 +18,11 @@ export default function PaymentCNY() {
     amount_rmb: number
     defaultMethod?: Method
   }
+
+  const [method, setMethod] = useState<Method>(info?.defaultMethod ?? 'wechat')
+  const [notified, setNotified] = useState(false)
+  const [notifying, setNotifying] = useState(false)
+  const [status, setStatus] = useState<'pending' | 'paid'>('pending')
 
   useEffect(() => {
     if (!info?.user_id) navigate('/')
