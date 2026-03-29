@@ -11,13 +11,17 @@ import hmac
 import time
 import httpx
 import logging
-from datetime import datetime, timezone, timedelta
+import re
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import Optional
 import calendar
+from passlib.context import CryptContext
+
+pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 from app.database import get_db
 from app.models.user import User, UserServer
@@ -39,8 +43,33 @@ def _add_months(dt: datetime, months: int) -> datetime:
 
 class SignupRequest(BaseModel):
     username: str
+    email: str
+    password: str
     plan_id: str
     telegram_username: Optional[str] = None
+
+    @field_validator("username")
+    @classmethod
+    def username_valid(cls, v: str) -> str:
+        v = v.strip()
+        if not re.match(r"^[a-zA-Z0-9_]{3,32}$", v):
+            raise ValueError("Username must be 3–32 characters, letters/numbers/underscore only")
+        return v
+
+    @field_validator("email")
+    @classmethod
+    def email_valid(cls, v: str) -> str:
+        v = v.strip().lower()
+        if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", v):
+            raise ValueError("Invalid email address")
+        return v
+
+    @field_validator("password")
+    @classmethod
+    def password_valid(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters")
+        return v
 
 
 @router.get("/plans")
@@ -79,10 +108,16 @@ async def signup(body: SignupRequest, db: AsyncSession = Depends(get_db)):
         select(User).where(User.username == body.username, User.deleted_at.is_(None))
     )
     if existing.scalar_one_or_none():
-        raise HTTPException(409, "Username already taken")
+        raise HTTPException(409, "Username already taken · 用户名已被使用")
+
+    # Check email taken
+    email_existing = await db.execute(
+        select(User).where(User.email == body.email, User.deleted_at.is_(None))
+    )
+    if email_existing.scalar_one_or_none():
+        raise HTTPException(409, "Email already registered · 邮箱已注册")
 
     # Generate unique payment reference = exact USDT amount with random cents
-    # e.g. 35 USDT → 35.47 so we can identify the transfer
     rand_cents = secrets.randbelow(90) + 1  # 01–90
     price_usdt = float(plan.price_usdt)
     exact_amount = f"{price_usdt:.0f}.{rand_cents:02d}"
@@ -90,6 +125,8 @@ async def signup(body: SignupRequest, db: AsyncSession = Depends(get_db)):
     # Create inactive user
     user = User(
         username=body.username,
+        email=body.email,
+        hashed_password=pwd_ctx.hash(body.password),
         is_active=False,
         disabled_reason="pending_payment",
         payment_status="pending_payment",
