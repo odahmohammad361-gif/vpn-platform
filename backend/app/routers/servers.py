@@ -20,7 +20,7 @@ class ServerCreate(BaseModel):
     port_range_start: int = 20000
     port_range_end: int = 29999
     method: str = "chacha20-ietf-poly1305"
-    protocol: str = "shadowsocks"  # shadowsocks | hysteria2
+    protocol: str = "shadowsocks"
 
     @field_validator("port_range_start", "port_range_end")
     @classmethod
@@ -40,7 +40,7 @@ class ServerUpdate(BaseModel):
     name: Optional[str] = None
     host: Optional[str] = None
     is_active: Optional[bool] = None
-    protocol: Optional[str] = None  # shadowsocks | hysteria2
+    protocol: Optional[str] = None
 
 
 @router.get("")
