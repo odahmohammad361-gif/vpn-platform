@@ -139,6 +139,7 @@ cat > "$XRAY_DIR/config.json" << EOF
       "listen": "0.0.0.0",
       "port": 443,
       "protocol": "vless",
+      "tag": "vless-in",
       "settings": {
         "clients": [],
         "decryption": "none"
@@ -159,6 +160,13 @@ cat > "$XRAY_DIR/config.json" << EOF
         "enabled": true,
         "destOverride": ["http", "tls"]
       }
+    },
+    {
+      "listen": "127.0.0.1",
+      "port": 10085,
+      "protocol": "dokodemo-door",
+      "tag": "api",
+      "settings": { "address": "127.0.0.1" }
     }
   ],
   "outbounds": [
