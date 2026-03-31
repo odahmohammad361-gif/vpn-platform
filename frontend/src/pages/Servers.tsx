@@ -1,14 +1,12 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, Wifi, WifiOff, Activity, Copy, Shield, ShieldOff, ExternalLink, Key } from "lucide-react";
+import { Plus, Trash2, Wifi, WifiOff, Activity, Copy, Shield, ShieldOff, ExternalLink } from "lucide-react";
 import api from "@/lib/api";
 
 export default function Servers() {
   const qc = useQueryClient();
   const [creating, setCreating] = useState(false);
-  const [editingReality, setEditingReality] = useState<string | null>(null);
-  const [realityForm, setRealityForm] = useState({ reality_public_key: "", reality_short_id: "" });
-  const [form, setForm] = useState({ name: "", host: "", api_port: 8080, port_range_start: 20000, port_range_end: 29999, protocol: "shadowsocks" });
+  const [form, setForm] = useState({ name: "", host: "", api_port: 8080, port_range_start: 20000, port_range_end: 29999 });
 
   const { data: servers = [] } = useQuery({
     queryKey: ["servers"],
@@ -32,18 +30,10 @@ export default function Servers() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["servers"] }),
   });
 
-  const saveReality = useMutation({
-    mutationFn: ({ id, ...data }: { id: string; reality_public_key: string; reality_short_id: string }) =>
-      api.patch(`/servers/${id}`, data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["servers"] }); setEditingReality(null); },
-  });
-
   const isOnline = (lastSeen: string | null) => {
     if (!lastSeen) return false;
     return new Date().getTime() - new Date(lastSeen).getTime() < 60000;
   };
-
-  const isVless = (s: any) => s.protocol === "vless";
 
   const inputClass = "w-full px-4 py-2.5 rounded-xl bg-white/5 text-white border border-white/10 focus:outline-none focus:border-blue-500/60 transition placeholder-gray-600 text-sm";
 
@@ -66,32 +56,10 @@ export default function Servers() {
         <div className="glass rounded-2xl p-6 space-y-4">
           <h2 className="text-white font-semibold">New Server</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <input className={inputClass} placeholder="Name (e.g. EU-01)" value={form.name}
+            <input className={inputClass} placeholder="Name (e.g. 🇸🇬 SG-Fast)" value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })} />
             <input className={inputClass} placeholder="Host IP (e.g. 31.220.80.56)" value={form.host}
               onChange={(e) => setForm({ ...form, host: e.target.value })} />
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setForm({ ...form, protocol: "shadowsocks" })}
-              className={`px-4 py-2 rounded-xl text-sm font-semibold border transition ${
-                form.protocol === "shadowsocks"
-                  ? "bg-blue-600 border-blue-500 text-white"
-                  : "bg-white/5 border-white/10 text-gray-400 hover:bg-white/10"
-              }`}
-            >
-              Shadowsocks
-            </button>
-            <button
-              onClick={() => setForm({ ...form, protocol: "vless" })}
-              className={`px-4 py-2 rounded-xl text-sm font-semibold border transition ${
-                form.protocol === "vless"
-                  ? "bg-purple-600 border-purple-500 text-white"
-                  : "bg-white/5 border-white/10 text-gray-400 hover:bg-white/10"
-              }`}
-            >
-              VLESS + Reality
-            </button>
           </div>
           <div className="flex gap-2">
             <button onClick={() => createServer.mutate(form)}
@@ -115,8 +83,6 @@ export default function Servers() {
         )}
         {servers.map((s: any) => {
           const online = isOnline(s.last_seen_at);
-          const vless = isVless(s);
-          const hasReality = s.reality_public_key && s.reality_short_id;
           return (
             <div key={s.id} className="glass rounded-2xl p-5">
               <div className="flex items-center justify-between">
@@ -142,18 +108,11 @@ export default function Servers() {
                     </div>
                     <p className="text-gray-400 text-sm font-mono mt-0.5">{s.host}</p>
                     <div className="flex items-center gap-3 mt-1.5 text-gray-600 text-xs">
-                      <span className={`px-1.5 py-0.5 rounded text-xs font-semibold ${
-                        vless ? "bg-purple-500/15 text-purple-400" : "bg-blue-500/15 text-blue-400"
-                      }`}>
-                        {vless ? "VLESS+Reality" : "Shadowsocks"}
+                      <span className="px-1.5 py-0.5 rounded text-xs font-semibold bg-blue-500/15 text-blue-400">
+                        Shadowsocks
                       </span>
                       <span>·</span>
-                      {vless
-                        ? <span className={hasReality ? "text-green-500" : "text-yellow-500"}>
-                            {hasReality ? "Keys configured" : "Keys missing"}
-                          </span>
-                        : <span>Ports {s.port_range_start}–{s.port_range_end}</span>
-                      }
+                      <span>Ports {s.port_range_start}–{s.port_range_end}</span>
                       <span>·</span>
                       <span className="flex items-center gap-1">
                         <Activity className="w-3 h-3" />
@@ -165,22 +124,6 @@ export default function Servers() {
 
                 {/* Actions */}
                 <div className="flex items-center gap-2">
-                  {vless && (
-                    <button
-                      title="Set Reality keys"
-                      onClick={() => {
-                        setEditingReality(s.id);
-                        setRealityForm({ reality_public_key: s.reality_public_key || "", reality_short_id: s.reality_short_id || "" });
-                      }}
-                      className={`p-2 rounded-xl border transition ${
-                        hasReality
-                          ? "bg-purple-500/10 border-purple-500/20 text-purple-400 hover:bg-purple-500/20"
-                          : "bg-yellow-500/10 border-yellow-500/20 text-yellow-400 hover:bg-yellow-500/20"
-                      }`}
-                    >
-                      <Key className="w-4 h-4" />
-                    </button>
-                  )}
                   <button
                     title={s.adguard_enabled ? "AdGuard ON — click to disable" : "AdGuard OFF — click to enable"}
                     onClick={() => toggleAdguard.mutate({ id: s.id, enabled: !s.adguard_enabled })}
@@ -210,39 +153,6 @@ export default function Servers() {
                 </div>
               </div>
 
-              {/* Reality key editor */}
-              {editingReality === s.id && (
-                <div className="mt-4 pt-4 border-t border-white/5 space-y-3">
-                  <p className="text-purple-400 text-xs font-semibold">Reality Keys — from vless-setup.sh output</p>
-                  <input
-                    className={inputClass}
-                    placeholder="Reality Public Key"
-                    value={realityForm.reality_public_key}
-                    onChange={(e) => setRealityForm({ ...realityForm, reality_public_key: e.target.value })}
-                  />
-                  <input
-                    className={inputClass}
-                    placeholder="Reality Short ID"
-                    value={realityForm.reality_short_id}
-                    onChange={(e) => setRealityForm({ ...realityForm, reality_short_id: e.target.value })}
-                  />
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => saveReality.mutate({ id: s.id, ...realityForm })}
-                      className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-sm font-medium transition"
-                    >
-                      Save
-                    </button>
-                    <button
-                      onClick={() => setEditingReality(null)}
-                      className="px-4 py-2 bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl text-sm transition"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              )}
-
               {/* IDs for agent install */}
               <div className="mt-4 pt-4 border-t border-white/5 grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
@@ -265,30 +175,6 @@ export default function Servers() {
                     </button>
                   </div>
                 </div>
-                {vless && hasReality && (
-                  <>
-                    <div>
-                      <p className="text-gray-600 text-xs mb-1">Reality Public Key</p>
-                      <div className="flex items-center gap-2">
-                        <p className="text-gray-500 font-mono text-xs break-all">{s.reality_public_key}</p>
-                        <button onClick={() => navigator.clipboard.writeText(s.reality_public_key)}
-                          className="shrink-0 p-1 rounded hover:bg-white/10 text-gray-600 hover:text-gray-300 transition">
-                          <Copy className="w-3 h-3" />
-                        </button>
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-gray-600 text-xs mb-1">Reality Short ID</p>
-                      <div className="flex items-center gap-2">
-                        <p className="text-gray-500 font-mono text-xs break-all">{s.reality_short_id}</p>
-                        <button onClick={() => navigator.clipboard.writeText(s.reality_short_id)}
-                          className="shrink-0 p-1 rounded hover:bg-white/10 text-gray-600 hover:text-gray-300 transition">
-                          <Copy className="w-3 h-3" />
-                        </button>
-                      </div>
-                    </div>
-                  </>
-                )}
               </div>
             </div>
           );

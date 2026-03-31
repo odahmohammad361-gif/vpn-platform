@@ -1,26 +1,6 @@
 import base64
 import yaml
-from urllib.parse import quote
 from app.utils.base64_utils import build_ss_uri, encode_subscription
-
-REALITY_SNI = "addons.mozilla.org"
-
-
-def _is_vless(slot: dict) -> bool:
-    return slot.get("protocol", "shadowsocks") == "vless"
-
-
-def _build_vless_uri(slot: dict) -> str:
-    """vless://UUID@host:443?security=reality&sni=...&pbk=...&sid=...&type=tcp&flow=#name"""
-    name = quote(slot["name"])
-    pbk = slot.get("reality_public_key", "")
-    sid = slot.get("reality_short_id", "")
-    return (
-        f"vless://{slot['password']}@{slot['host']}:443"
-        f"?type=tcp&security=reality&sni={REALITY_SNI}&fp=chrome"
-        f"&pbk={pbk}&sid={sid}&flow=xtls-rprx-vision"
-        f"#{name}"
-    )
 
 
 # China domains/IPs that should go DIRECT (not through VPN)
@@ -74,46 +54,23 @@ _SURGE_RULES = [
 
 
 def build_shadowrocket(slots: list[dict]) -> str:
-    uris = []
-    for s in slots:
-        if _is_vless(s):
-            uris.append(_build_vless_uri(s))
-        else:
-            uris.append(build_ss_uri(s["method"], s["password"], s["host"], s["port"], s["name"]))
+    uris = [build_ss_uri(s["method"], s["password"], s["host"], s["port"], s["name"]) for s in slots]
     return encode_subscription(uris)
 
 
 def build_clash(slots: list[dict]) -> str:
-    proxies = []
-    for s in slots:
-        if _is_vless(s):
-            proxies.append({
-                "name": s["name"],
-                "type": "vless",
-                "server": s["host"],
-                "port": 443,
-                "uuid": s["password"],
-                "network": "tcp",
-                "tls": True,
-                "flow": "xtls-rprx-vision",
-                "client-fingerprint": "chrome",
-                "servername": REALITY_SNI,
-                "skip-cert-verify": False,
-                "reality-opts": {
-                    "public-key": s.get("reality_public_key", ""),
-                    "short-id": s.get("reality_short_id", ""),
-                },
-            })
-        else:
-            proxies.append({
-                "name": s["name"],
-                "type": "ss",
-                "server": s["host"],
-                "port": s["port"],
-                "cipher": s["method"],
-                "password": s["password"],
-                "udp": True,
-            })
+    proxies = [
+        {
+            "name": s["name"],
+            "type": "ss",
+            "server": s["host"],
+            "port": s["port"],
+            "cipher": s["method"],
+            "password": s["password"],
+            "udp": True,
+        }
+        for s in slots
+    ]
     proxy_names = [s["name"] for s in slots]
     dns_servers = list(dict.fromkeys(s["host"] for s in slots))
     config = {
@@ -140,12 +97,7 @@ def build_clash(slots: list[dict]) -> str:
 
 
 def build_v2rayng(slots: list[dict]) -> str:
-    uris = []
-    for s in slots:
-        if _is_vless(s):
-            uris.append(_build_vless_uri(s))
-        else:
-            uris.append(build_ss_uri(s["method"], s["password"], s["host"], s["port"], s["name"]))
+    uris = [build_ss_uri(s["method"], s["password"], s["host"], s["port"], s["name"]) for s in slots]
     return encode_subscription(uris)
 
 
@@ -168,16 +120,7 @@ def build_surge_conf(slots: list[dict]) -> str:
     for s in slots:
         name = s["name"]
         proxy_names.append(name)
-        if _is_vless(s):
-            pbk = s.get("reality_public_key", "")
-            sid = s.get("reality_short_id", "")
-            lines.append(
-                f"{name} = vless, {s['host']}, 443, username={s['password']}, "
-                f"tls=true, reality-public-key={pbk}, reality-short-id={sid}, "
-                f"sni={REALITY_SNI}, skip-cert-verify=false"
-            )
-        else:
-            lines.append(f"{name} = ss, {s['host']}, {s['port']}, {s['method']}, {s['password']}")
+        lines.append(f"{name} = ss, {s['host']}, {s['port']}, {s['method']}, {s['password']}")
 
     lines += [
         "",

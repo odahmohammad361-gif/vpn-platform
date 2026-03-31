@@ -40,9 +40,6 @@ class ServerUpdate(BaseModel):
     name: Optional[str] = None
     host: Optional[str] = None
     is_active: Optional[bool] = None
-    protocol: Optional[str] = None
-    reality_public_key: Optional[str] = None
-    reality_short_id: Optional[str] = None
 
 
 @router.get("")
