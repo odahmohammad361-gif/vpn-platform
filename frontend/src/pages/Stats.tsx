@@ -1,56 +1,133 @@
 import { useQuery } from "@tanstack/react-query";
+import { Users, Database, TrendingUp, Server } from "lucide-react";
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
+} from "recharts";
 import api from "@/lib/api";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 function fmtBytes(b: number) {
-  if (b >= 1e9) return (b / 1e9).toFixed(2) + " GB";
-  if (b >= 1e6) return (b / 1e6).toFixed(2) + " MB";
-  return (b / 1e3).toFixed(1) + " KB";
+  if (b >= 1e12) return (b / 1e12).toFixed(2) + " TB";
+  if (b >= 1e9)  return (b / 1e9).toFixed(2) + " GB";
+  if (b >= 1e6)  return (b / 1e6).toFixed(1) + " MB";
+  if (b >= 1e3)  return (b / 1e3).toFixed(1) + " KB";
+  return b + " B";
 }
 
-export default function Stats() {
-  const { data: traffic = [] } = useQuery({
-    queryKey: ["stats-traffic"],
-    queryFn: () => api.get("/stats/traffic?days=30").then((r) => r.data),
-    refetchInterval: 60000,
-  });
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="glass rounded-xl px-3 py-2 text-xs space-y-1">
+      <p className="text-gray-400">{label}</p>
+      {payload.map((p: any) => (
+        <p key={p.name} style={{ color: p.color }}>{p.name}: {fmtBytes(p.value)}</p>
+      ))}
+    </div>
+  );
+};
 
+export default function Stats() {
   const { data: overview } = useQuery({
     queryKey: ["stats-overview"],
     queryFn: () => api.get("/stats/overview").then((r) => r.data),
     refetchInterval: 30000,
   });
 
+  const { data: traffic = [] } = useQuery({
+    queryKey: ["stats-traffic-30"],
+    queryFn: () => api.get("/stats/traffic?days=30").then((r) => r.data),
+    refetchInterval: 60000,
+  });
+
+  const { data: topUsers = [] } = useQuery({
+    queryKey: ["stats-top-users"],
+    queryFn: () => api.get("/stats/top-users?limit=10").then((r) => r.data),
+    refetchInterval: 60000,
+  });
+
+  const totalTraffic = traffic.reduce((sum: number, d: any) => sum + (d.upload || 0) + (d.download || 0), 0);
+  const maxUserBytes = topUsers.length > 0 ? topUsers[0].bytes_used : 1;
+
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-white">Statistics</h1>
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold text-white">Statistics</h1>
+        <p className="text-gray-500 text-sm mt-1">Platform usage overview — last 30 days</p>
+      </div>
 
+      {/* Stats cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: "Total Users", value: overview?.total_users ?? 0 },
-          { label: "Active Users", value: overview?.active_users ?? 0 },
-          { label: "Servers", value: overview?.total_servers ?? 0 },
-          { label: "Traffic Today", value: fmtBytes(overview?.traffic_today_bytes ?? 0) },
+          { label: "Total Users",   value: overview?.total_users ?? 0,                        icon: Users,      color: "bg-blue-600" },
+          { label: "Active Users",  value: overview?.active_users ?? 0,                       icon: TrendingUp, color: "bg-green-600" },
+          { label: "Servers",       value: overview?.total_servers ?? 0,                      icon: Server,     color: "bg-purple-600" },
+          { label: "Traffic Today", value: fmtBytes(overview?.traffic_today_bytes ?? 0),      icon: Database,   color: "bg-orange-600" },
         ].map((s) => (
-          <div key={s.label} className="bg-gray-800 rounded-lg p-4">
-            <div className="text-gray-400 text-sm">{s.label}</div>
-            <div className="text-white text-2xl font-bold mt-1">{s.value}</div>
+          <div key={s.label} className="glass rounded-2xl p-5 flex items-center gap-4">
+            <div className={`p-3 rounded-xl ${s.color} shrink-0`}>
+              <s.icon className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <p className="text-gray-500 text-xs font-medium uppercase tracking-wider">{s.label}</p>
+              <p className="text-white text-2xl font-bold mt-0.5">{s.value}</p>
+            </div>
           </div>
         ))}
       </div>
 
-      <div className="bg-gray-800 rounded-lg p-4">
-        <h2 className="text-white font-semibold mb-4">Traffic (30 days)</h2>
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={traffic}>
-            <XAxis dataKey="date" stroke="#9ca3af" tick={{ fontSize: 12 }} />
-            <YAxis stroke="#9ca3af" tickFormatter={(v) => fmtBytes(v)} tick={{ fontSize: 12 }} />
-            <Tooltip formatter={(v: number) => fmtBytes(v)} />
-            <Legend />
+      {/* Traffic chart */}
+      <div className="glass rounded-2xl p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-white font-semibold">Traffic — Last 30 Days</h2>
+            <p className="text-gray-500 text-xs mt-0.5">Total: {fmtBytes(totalTraffic)}</p>
+          </div>
+          <div className="flex items-center gap-4 text-xs text-gray-500">
+            <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-blue-500 inline-block" /> Download</span>
+            <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-green-500 inline-block" /> Upload</span>
+          </div>
+        </div>
+        <ResponsiveContainer width="100%" height={260}>
+          <BarChart data={traffic} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+            <XAxis dataKey="date" stroke="#374151" tick={{ fill: "#6b7280", fontSize: 11 }} tickLine={false} />
+            <YAxis stroke="#374151" tickFormatter={fmtBytes} tick={{ fill: "#6b7280", fontSize: 11 }} tickLine={false} width={70} />
+            <Tooltip content={<CustomTooltip />} />
             <Bar dataKey="download" name="Download" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="upload" name="Upload" fill="#22c55e" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="upload"   name="Upload"   fill="#22c55e" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
+      </div>
+
+      {/* Top users */}
+      <div className="glass rounded-2xl p-6">
+        <h2 className="text-white font-semibold mb-5">Top Users by Usage</h2>
+        {topUsers.length === 0 ? (
+          <p className="text-gray-600 text-sm">No data yet</p>
+        ) : (
+          <div className="space-y-3">
+            {topUsers.map((u: any, i: number) => {
+              const pct = Math.min(100, (u.bytes_used / maxUserBytes) * 100);
+              return (
+                <div key={u.username}>
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-600 text-xs w-5 text-right">{i + 1}.</span>
+                      <span className="text-white text-sm font-medium">{u.username}</span>
+                    </div>
+                    <span className="text-gray-400 text-xs">{fmtBytes(u.bytes_used)}</span>
+                  </div>
+                  <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-blue-600 to-blue-400 transition-all duration-500"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
