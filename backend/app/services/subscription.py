@@ -96,12 +96,13 @@ def build_clash(slots: list[dict]) -> str:
                 "network": "tcp",
                 "tls": True,
                 "flow": "xtls-rprx-vision",
+                "client-fingerprint": "chrome",
                 "servername": REALITY_SNI,
+                "skip-cert-verify": False,
                 "reality-opts": {
                     "public-key": s.get("reality_public_key", ""),
                     "short-id": s.get("reality_short_id", ""),
                 },
-                "client-fingerprint": "chrome",
             })
         else:
             proxies.append({
