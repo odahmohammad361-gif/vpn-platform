@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
     ADMIN_USERNAME: str = "admin"
     ADMIN_PASSWORD: str
-    SUBSCRIPTION_BASE_URL: str = "https://saymy-vpn.com:8443"
+    SUBSCRIPTION_BASE_URL: str = "https://saymy-vpn.com"
     USDT_WALLET: str = ""
     BINANCE_API_KEY: str = ""
     BINANCE_API_SECRET: str = ""

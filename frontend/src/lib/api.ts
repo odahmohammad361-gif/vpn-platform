@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const api = axios.create({ baseURL: "/api" });
+const api = axios.create({ baseURL: "/ilovemydad9708/api" });
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("access_token");
@@ -17,7 +17,7 @@ api.interceptors.response.use(
       const refreshToken = localStorage.getItem("refresh_token");
       if (refreshToken) {
         try {
-          const { data } = await axios.post("/api/auth/refresh", { refresh_token: refreshToken });
+          const { data } = await axios.post("/ilovemydad9708/api/auth/refresh", { refresh_token: refreshToken });
           localStorage.setItem("access_token", data.access_token);
           localStorage.setItem("refresh_token", data.refresh_token);
           original.headers.Authorization = `Bearer ${data.access_token}`;
@@ -28,7 +28,7 @@ api.interceptors.response.use(
       }
       localStorage.removeItem("access_token");
       localStorage.removeItem("refresh_token");
-      window.location.href = "/login";
+      window.location.href = "/ilovemydad9708/login";
     }
     return Promise.reject(err);
   }
