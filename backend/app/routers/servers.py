@@ -20,7 +20,6 @@ class ServerCreate(BaseModel):
     port_range_start: int = 20000
     port_range_end: int = 29999
     method: str = "chacha20-ietf-poly1305"
-    protocol: str = "shadowsocks"
 
     @field_validator("port_range_start", "port_range_end")
     @classmethod
