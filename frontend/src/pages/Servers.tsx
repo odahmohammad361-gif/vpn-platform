@@ -32,7 +32,7 @@ export default function Servers() {
 
   const isOnline = (lastSeen: string | null) => {
     if (!lastSeen) return false;
-    return new Date().getTime() - new Date(lastSeen).getTime() < 60000;
+    return new Date().getTime() - new Date(lastSeen).getTime() < 180000;
   };
 
   const inputClass = "w-full px-4 py-2.5 rounded-xl bg-white/5 text-white border border-white/10 focus:outline-none focus:border-blue-500/60 transition placeholder-gray-600 text-sm";
