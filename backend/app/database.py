@@ -11,8 +11,6 @@ engine = create_async_engine(
     settings.DATABASE_URL,
     echo=False,
     connect_args={"ssl": ssl_ctx},
-    pool_size=20,
-    max_overflow=10,
     pool_pre_ping=True,
     pool_recycle=3600,
 )
