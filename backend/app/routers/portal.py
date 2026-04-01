@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.database import get_db
 from app.models.user import User
-from app.main import limiter
+from app.limiter import limiter
 from pydantic import BaseModel
 import uuid
 import bcrypt as _bcrypt

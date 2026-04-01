@@ -3,7 +3,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from app.utils.crypto import verify_password, create_access_token, create_refresh_token, decode_token
 from pydantic import BaseModel
 from app.config import settings
-from app.main import limiter
+from app.limiter import limiter
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
