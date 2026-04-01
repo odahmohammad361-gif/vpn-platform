@@ -13,6 +13,7 @@ from app.models.user import User, UserServer
 from app.models.server import Server
 from app.models.traffic import DailyTraffic, TrafficLog
 from app.models.plan import Plan
+from app.models.device import Device
 from app.config import settings
 
 
@@ -41,18 +42,13 @@ class UserUpdate(BaseModel):
 
 
 async def _device_counts(db: AsyncSession, user_ids: list[uuid.UUID]) -> dict[uuid.UUID, int]:
-    """Return distinct active client IP count per user (seen in last 10 minutes)."""
+    """Return number of unique IPs that have fetched this user's subscription."""
     if not user_ids:
         return {}
-    since = datetime.now(timezone.utc) - timedelta(minutes=10)
     rows = await db.execute(
-        select(UserServer.user_id, func.count(distinct(UserServer.last_client_ip)))
-        .where(
-            UserServer.user_id.in_(user_ids),
-            UserServer.last_client_ip.isnot(None),
-            UserServer.last_seen_at >= since,
-        )
-        .group_by(UserServer.user_id)
+        select(Device.user_id, func.count(Device.ip_address))
+        .where(Device.user_id.in_(user_ids))
+        .group_by(Device.user_id)
     )
     return {row[0]: row[1] for row in rows.all()}
 

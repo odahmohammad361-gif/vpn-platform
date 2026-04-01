@@ -1,13 +1,15 @@
 import uuid
 from datetime import datetime, timezone
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import PlainTextResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from fastapi import Depends
 from app.database import get_db
 from app.models.user import User, UserServer
 from app.models.server import Server
+from app.models.device import Device
 from app.services.subscription import build_shadowrocket, build_clash, build_v2rayng, build_surge_conf
 from app.config import settings
 
@@ -65,6 +67,7 @@ def _respond(slots: list[dict], format: str, user: User | None = None):
 @router.get("/{token}")
 async def get_subscription(
     token: uuid.UUID,
+    request: Request,
     format: str = "shadowrocket",
     db: AsyncSession = Depends(get_db),
 ):
@@ -73,6 +76,19 @@ async def get_subscription(
 
     if not user:
         raise HTTPException(403, "Subscription not available")
+
+    # Record device IP (upsert — update last_seen_at if already known)
+    client_ip = request.headers.get("X-Forwarded-For", request.client.host).split(",")[0].strip()
+    now = datetime.now(timezone.utc)
+    await db.execute(
+        pg_insert(Device)
+        .values(user_id=user.id, ip_address=client_ip, first_seen_at=now, last_seen_at=now)
+        .on_conflict_do_update(
+            index_elements=["user_id", "ip_address"],
+            set_={"last_seen_at": now},
+        )
+    )
+    await db.commit()
 
     # Real-time expiry check (don't wait for scheduler)
     if user.expires_at and user.expires_at < datetime.now(timezone.utc):
