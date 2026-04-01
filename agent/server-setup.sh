@@ -6,9 +6,9 @@
 #  Example: sudo bash server-setup.sh abc-uuid secret123 https://52.77.235.166:8443
 # ================================================
 
-SERVER_ID="$1"
-AGENT_SECRET="$2"
-API_BASE="$3"
+SERVER_ID="${1:-}"
+AGENT_SECRET="${2:-}"
+API_BASE="${3:-}"
 
 if [[ -z "$SERVER_ID" || -z "$AGENT_SECRET" || -z "$API_BASE" ]]; then
     echo "Usage: sudo bash server-setup.sh <SERVER_ID> <AGENT_SECRET> <API_BASE>"
