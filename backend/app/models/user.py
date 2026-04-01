@@ -48,6 +48,8 @@ class UserServer(Base):
     port: Mapped[int] = mapped_column(Integer, nullable=False)
     password: Mapped[str] = mapped_column(Text, nullable=False)
     is_synced: Mapped[bool] = mapped_column(Boolean, default=False)
+    last_client_ip: Mapped[str | None] = mapped_column(String(45), nullable=True)
+    last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
 
     user: Mapped["User"] = relationship("User", back_populates="servers")

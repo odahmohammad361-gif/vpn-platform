@@ -1,6 +1,6 @@
 import uuid
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Header, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
@@ -72,6 +72,7 @@ async def report_traffic(
 ):
     if len(entries) > 5000:
         raise HTTPException(400, "Too many traffic entries")
+    now = datetime.now(timezone.utc)
     for entry in entries:
         log = TrafficLog(
             user_server_id=entry.user_server_id,
@@ -81,6 +82,12 @@ async def report_traffic(
             client_ip=entry.client_ip,
         )
         db.add(log)
+        if entry.client_ip:
+            await db.execute(
+                update(UserServer)
+                .where(UserServer.id == entry.user_server_id)
+                .values(last_client_ip=entry.client_ip, last_seen_at=now)
+            )
 
     # bytes_used and quota enforcement handled by scheduler (process_traffic)
     await db.commit()

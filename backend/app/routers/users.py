@@ -41,17 +41,16 @@ class UserUpdate(BaseModel):
 
 
 async def _device_counts(db: AsyncSession, user_ids: list[uuid.UUID]) -> dict[uuid.UUID, int]:
-    """Return distinct client IP count per user over last 24 hours."""
+    """Return distinct active client IP count per user (seen in last 10 minutes)."""
     if not user_ids:
         return {}
-    since = datetime.now(timezone.utc) - timedelta(hours=24)
+    since = datetime.now(timezone.utc) - timedelta(minutes=10)
     rows = await db.execute(
-        select(UserServer.user_id, func.count(distinct(TrafficLog.client_ip)))
-        .join(TrafficLog, TrafficLog.user_server_id == UserServer.id)
+        select(UserServer.user_id, func.count(distinct(UserServer.last_client_ip)))
         .where(
             UserServer.user_id.in_(user_ids),
-            TrafficLog.client_ip.isnot(None),
-            TrafficLog.reported_at >= since,
+            UserServer.last_client_ip.isnot(None),
+            UserServer.last_seen_at >= since,
         )
         .group_by(UserServer.user_id)
     )

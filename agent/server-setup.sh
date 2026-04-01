@@ -448,19 +448,13 @@ def get_client_ips_by_port():
             stderr=subprocess.DEVNULL
         ).decode()
         for line in out.splitlines():
-            # ss output: Recv-Q Send-Q  Local Address:Port  Peer Address:Port
             parts = line.split()
             if len(parts) < 4:
                 continue
-            local = parts[3]
-            peer  = parts[4] if len(parts) > 4 else ''
-            lm = re.search(r':(\d+)$', local)
-            pm = re.search(r'^(\d+\.\d+\.\d+\.\d+)', peer)
-            if lm and pm:
-                port = lm.group(1)
-                ip   = pm.group(1)
-                if port in port_map:
-                    port_ips[port] = ip
+            lm = re.search(r':(\d+)$', parts[2])
+            pm = re.search(r'^(\d+\.\d+\.\d+\.\d+)', parts[3])
+            if lm and pm and lm.group(1) in port_map:
+                port_ips[lm.group(1)] = pm.group(1)
     except Exception:
         pass
     return port_ips
@@ -473,7 +467,7 @@ entries = []
 for port, uid in port_map.items():
     d = dl.get(port, 0)
     u = ul.get(port, 0)
-    if d > 0 or u > 0:
+    if d > 0 or u > 0 or port in client_ips:
         entry = {
             'user_server_id': uid,
             'upload_bytes': u,
