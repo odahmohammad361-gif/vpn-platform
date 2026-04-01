@@ -44,10 +44,12 @@ class UserUpdate(BaseModel):
 async def list_users(
     active: Optional[bool] = None,
     page: int = 1,
-    limit: int = 50,
+    limit: int = 50,  # capped below
     search: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
 ):
+    limit = min(limit, 100)
+    page = max(page, 1)
     q = select(User).where(User.deleted_at == None)
     if active is not None:
         q = q.where(User.is_active == active)

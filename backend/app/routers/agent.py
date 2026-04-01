@@ -69,6 +69,8 @@ async def report_traffic(
     db: AsyncSession = Depends(get_db),
     server: Server = Depends(authenticate_agent),
 ):
+    if len(entries) > 5000:
+        raise HTTPException(400, "Too many traffic entries")
     for entry in entries:
         log = TrafficLog(
             user_server_id=entry.user_server_id,

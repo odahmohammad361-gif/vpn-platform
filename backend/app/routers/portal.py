@@ -1,13 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi import APIRouter, Depends, HTTPException, Header, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.database import get_db
 from app.models.user import User
+from app.main import limiter
 from pydantic import BaseModel
 import uuid
 import bcrypt as _bcrypt
 
 router = APIRouter(prefix="/portal", tags=["portal"])
+
+_DUMMY_HASH = _bcrypt.hashpw(b"dummy", _bcrypt.gensalt()).decode()
 
 
 class PortalLoginRequest(BaseModel):
@@ -16,7 +19,8 @@ class PortalLoginRequest(BaseModel):
 
 
 @router.post("/login")
-async def portal_login(body: PortalLoginRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit("10/minute")
+async def portal_login(request: Request, body: PortalLoginRequest, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         select(User).where(
             User.email == body.email.strip().lower(),
@@ -24,9 +28,12 @@ async def portal_login(body: PortalLoginRequest, db: AsyncSession = Depends(get_
         )
     )
     user = result.scalar_one_or_none()
-    if not user or not user.hashed_password:
-        raise HTTPException(401, "Invalid email or password")
-    if not _bcrypt.checkpw(body.password.encode(), user.hashed_password.encode()):
+
+    # Always run bcrypt to prevent timing-based email enumeration
+    hash_to_check = user.hashed_password if (user and user.hashed_password) else _DUMMY_HASH
+    valid = _bcrypt.checkpw(body.password.encode(), hash_to_check.encode())
+
+    if not user or not user.hashed_password or not valid:
         raise HTTPException(401, "Invalid email or password")
     if user.payment_status == "pending_payment":
         raise HTTPException(403, "payment_pending")

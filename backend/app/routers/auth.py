@@ -1,11 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from app.database import get_db
-from app.models.user import User
 from app.utils.crypto import verify_password, create_access_token, create_refresh_token, decode_token
 from pydantic import BaseModel
+from app.config import settings
+from app.main import limiter
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -20,12 +18,9 @@ class RefreshRequest(BaseModel):
     refresh_token: str
 
 
-# Simple admin store — single admin from env
-# Extend to DB-backed admins table when needed
-from app.config import settings
-
 @router.post("/login", response_model=TokenResponse)
-async def login(form: OAuth2PasswordRequestForm = Depends()):
+@limiter.limit("10/minute")
+async def login(request: Request, form: OAuth2PasswordRequestForm = Depends()):
     if form.username != settings.ADMIN_USERNAME or form.password != settings.ADMIN_PASSWORD:
         raise HTTPException(status_code=401, detail="Invalid credentials")
     data = {"sub": form.username, "role": "admin"}

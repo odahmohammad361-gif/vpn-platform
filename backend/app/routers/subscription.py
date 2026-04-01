@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import PlainTextResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -72,6 +73,14 @@ async def get_subscription(
 
     if not user:
         raise HTTPException(403, "Subscription not available")
+
+    # Real-time expiry check (don't wait for scheduler)
+    if user.expires_at and user.expires_at < datetime.now(timezone.utc):
+        if user.is_active:
+            user.is_active = False
+            user.disabled_reason = "expired"
+            await db.commit()
+        return _respond(_disabled_slots("expired"), format, user)
 
     # Disabled / quota exceeded → return a dead server so Shadowrocket shows timeout
     if not user.is_active:
