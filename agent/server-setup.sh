@@ -3,7 +3,7 @@
 #  VPN Server Full Setup
 #  Installs shadowsocks-rust + AdGuard Home + agent
 #  Usage: sudo bash server-setup.sh <SERVER_ID> <AGENT_SECRET> <API_BASE>
-#  Example: sudo bash server-setup.sh abc-uuid secret123 https://52.77.235.166:8443
+#  Example: sudo bash server-setup.sh abc-uuid secret123
 # ================================================
 
 SERVER_ID="${1:-}"
@@ -422,7 +422,7 @@ report_traffic() {
     [[ "$port_map" == "{}" ]] && return
 
     local payload
-    payload=$(python3 - << PYEOF
+    payload=$(python3 -c "
 import subprocess, json, re
 
 with open('$PORT_MAP') as _f:
@@ -441,21 +441,24 @@ def read_chain(chain, field):
     return result
 
 def get_client_ips_by_port():
-    """Parse ss-server logs to get most recent client IP per port."""
     port_ips = {}
     try:
         out = subprocess.check_output(
-            ['journalctl', '-u', 'shadowsocks', '--no-pager', '-n', '500', '--output=short'],
+            ['ss', '-tn', 'state', 'established'],
             stderr=subprocess.DEVNULL
         ).decode()
-        # ss-rust logs: "connected peer: 1.2.3.4:12345 <-> local port 20001"
         for line in out.splitlines():
-            m = re.search(r'peer[:\s]+(\d+\.\d+\.\d+\.\d+):\d+.*?(?:port\s+|dport=|->.*?:)(\d{5})', line)
-            if not m:
-                # Try alternate format: "tcp tunnel 1.2.3.4:port -> 0.0.0.0:20001"
-                m = re.search(r'(\d+\.\d+\.\d+\.\d+):\d+\s*->\s*\S+:(\d{5})', line)
-            if m:
-                ip, port = m.group(1), m.group(2)
+            # ss output: Recv-Q Send-Q  Local Address:Port  Peer Address:Port
+            parts = line.split()
+            if len(parts) < 4:
+                continue
+            local = parts[3]
+            peer  = parts[4] if len(parts) > 4 else ''
+            lm = re.search(r':(\d+)$', local)
+            pm = re.search(r'^(\d+\.\d+\.\d+\.\d+)', peer)
+            if lm and pm:
+                port = lm.group(1)
+                ip   = pm.group(1)
                 if port in port_map:
                     port_ips[port] = ip
     except Exception:
@@ -481,8 +484,7 @@ for port, uid in port_map.items():
             entry['client_ip'] = client_ips[port]
         entries.append(entry)
 print(json.dumps(entries))
-PYEOF
-)
+")
 
     if [[ -n "$payload" && "$payload" != "[]" ]]; then
         api_post "/traffic/${SERVER_ID}" "$payload" > /dev/null
