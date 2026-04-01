@@ -256,7 +256,7 @@ async def _notify_telegram(user: User, plan):
         f"Plan: {plan.name}\n"
         f"Expires: {user.expires_at.strftime('%d/%m/%Y')}\n\n"
         f"Your subscription token:\n{sub_token}\n\n"
-        f"Open your portal: {base.replace(':8080', '')}\n"
+        f"Open your portal: {base}\n"
         f"Or use /login {sub_token} in our Telegram bot."
     )
 

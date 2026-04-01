@@ -25,7 +25,7 @@ from sqlalchemy import select, update as sa_update
 BOT_TOKEN        = os.environ["TELEGRAM_BOT_TOKEN"]
 ADMIN_CHAT_IDS   = [int(x) for x in os.environ.get("TELEGRAM_ADMIN_IDS", "").split(",") if x.strip()]
 DATABASE_URL     = os.environ["DATABASE_URL"]
-SUB_BASE_URL     = os.environ.get("SUBSCRIPTION_BASE_URL", "http://localhost:8080")
+SUB_BASE_URL     = os.environ.get("SUBSCRIPTION_BASE_URL", "https://saymy-vpn.com")
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

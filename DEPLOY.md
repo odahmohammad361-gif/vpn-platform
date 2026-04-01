@@ -7,7 +7,7 @@ Amazon Windows Server (AWS)
 ├── Docker Desktop (WSL2)
 │   ├── backend  (FastAPI)
 │   ├── frontend (React)
-│   └── nginx    (reverse proxy :8080/:8443)
+│   └── nginx    (reverse proxy 443)
 └── Aurora RDS PostgreSQL (external DB)
 
 Contabo Ubuntu Server 1  (VPN Server SG-01)

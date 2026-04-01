@@ -108,7 +108,7 @@ export default function Dashboard() {
 
   if (!user) return null
 
-  const base = `${window.location.protocol}//${window.location.hostname}:8080`
+  const base = `${window.location.protocol}//${window.location.hostname}`
   const token = user.subscription_token
 
   const raw   = `${base}/sub/${token}`
