@@ -440,20 +440,46 @@ def read_chain(chain, field):
             result[m.group(2)] = result.get(m.group(2), 0) + int(m.group(1))
     return result
 
+def get_client_ips_by_port():
+    """Parse ss-server logs to get most recent client IP per port."""
+    port_ips = {}
+    try:
+        out = subprocess.check_output(
+            ['journalctl', '-u', 'shadowsocks', '--no-pager', '-n', '500', '--output=short'],
+            stderr=subprocess.DEVNULL
+        ).decode()
+        # ss-rust logs: "connected peer: 1.2.3.4:12345 <-> local port 20001"
+        for line in out.splitlines():
+            m = re.search(r'peer[:\s]+(\d+\.\d+\.\d+\.\d+):\d+.*?(?:port\s+|dport=|->.*?:)(\d{5})', line)
+            if not m:
+                # Try alternate format: "tcp tunnel 1.2.3.4:port -> 0.0.0.0:20001"
+                m = re.search(r'(\d+\.\d+\.\d+\.\d+):\d+\s*->\s*\S+:(\d{5})', line)
+            if m:
+                ip, port = m.group(1), m.group(2)
+                if port in port_map:
+                    port_ips[port] = ip
+    except Exception:
+        pass
+    return port_ips
+
 dl = read_chain('VPN_IN',  'dpt')
 ul = read_chain('VPN_OUT', 'spt')
+client_ips = get_client_ips_by_port()
 
 entries = []
 for port, uid in port_map.items():
     d = dl.get(port, 0)
     u = ul.get(port, 0)
     if d > 0 or u > 0:
-        entries.append({
+        entry = {
             'user_server_id': uid,
             'upload_bytes': u,
             'download_bytes': d,
             'interval_sec': $CYCLE_SECONDS
-        })
+        }
+        if port in client_ips:
+            entry['client_ip'] = client_ips[port]
+        entries.append(entry)
 print(json.dumps(entries))
 PYEOF
 )

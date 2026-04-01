@@ -60,6 +60,7 @@ class TrafficEntry(BaseModel):
     upload_bytes: int
     download_bytes: int
     interval_sec: int = 30
+    client_ip: Optional[str] = None
 
 
 @router.post("/traffic/{server_id}")
@@ -77,6 +78,7 @@ async def report_traffic(
             upload_bytes=entry.upload_bytes,
             download_bytes=entry.download_bytes,
             agent_interval_sec=entry.interval_sec,
+            client_ip=entry.client_ip,
         )
         db.add(log)
 

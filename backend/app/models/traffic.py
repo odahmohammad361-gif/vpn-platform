@@ -1,7 +1,8 @@
 import uuid
 from datetime import datetime, date
-from sqlalchemy import BigInteger, Integer, DateTime, Date, ForeignKey, UniqueConstraint
+from sqlalchemy import BigInteger, Integer, DateTime, Date, ForeignKey, UniqueConstraint, String
 from sqlalchemy.orm import Mapped, mapped_column
+from typing import Optional
 from app.database import Base
 
 
@@ -14,6 +15,7 @@ class TrafficLog(Base):
     download_bytes: Mapped[int] = mapped_column(BigInteger, default=0)
     reported_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
     agent_interval_sec: Mapped[int] = mapped_column(Integer, default=30)
+    client_ip: Mapped[Optional[str]] = mapped_column(String(45), nullable=True)
 
 
 class DailyTraffic(Base):

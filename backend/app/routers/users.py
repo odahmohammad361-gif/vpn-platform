@@ -1,10 +1,10 @@
 import uuid
 import secrets
 import calendar
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, text, delete, update, func
+from sqlalchemy import select, text, delete, update, func, distinct
 from pydantic import BaseModel, field_validator, model_validator
 from typing import Optional
 from app.database import get_db
@@ -40,6 +40,24 @@ class UserUpdate(BaseModel):
     is_active: Optional[bool] = None
 
 
+async def _device_counts(db: AsyncSession, user_ids: list[uuid.UUID]) -> dict[uuid.UUID, int]:
+    """Return distinct client IP count per user over last 24 hours."""
+    if not user_ids:
+        return {}
+    since = datetime.now(timezone.utc) - timedelta(hours=24)
+    rows = await db.execute(
+        select(UserServer.user_id, func.count(distinct(TrafficLog.client_ip)))
+        .join(TrafficLog, TrafficLog.user_server_id == UserServer.id)
+        .where(
+            UserServer.user_id.in_(user_ids),
+            TrafficLog.client_ip.isnot(None),
+            TrafficLog.reported_at >= since,
+        )
+        .group_by(UserServer.user_id)
+    )
+    return {row[0]: row[1] for row in rows.all()}
+
+
 @router.get("")
 async def list_users(
     active: Optional[bool] = None,
@@ -57,7 +75,17 @@ async def list_users(
         q = q.where(User.username.ilike(f"%{search}%"))
     q = q.offset((page - 1) * limit).limit(limit)
     result = await db.execute(q)
-    return result.scalars().all()
+    users = result.scalars().all()
+
+    device_counts = await _device_counts(db, [u.id for u in users])
+
+    return [
+        {
+            **{c.key: getattr(u, c.key) for c in u.__table__.columns},
+            "active_devices": device_counts.get(u.id, 0),
+        }
+        for u in users
+    ]
 
 
 @router.post("", status_code=201)
