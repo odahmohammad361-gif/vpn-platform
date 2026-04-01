@@ -370,7 +370,7 @@ export default function Dashboard() {
                 const el = document.getElementById('wechat-qr')
                 if (el) el.classList.toggle('hidden')
               }}
-              className="flex items-center gap-3 p-4 rounded-xl bg-[#07C160]/10 border border-[#07C160]/30 hover:bg-[#07C160]/20 transition-colors"
+              className="flex items-center gap-3 p-4 rounded-xl bg-[#07C160]/10 border border-[#07C160]/30 hover:bg-[#07C160]/20 transition-colors w-full text-left"
             >
               <div className="w-9 h-9 rounded-xl bg-[#07C160]/20 flex items-center justify-center flex-shrink-0">
                 <svg className="w-5 h-5 text-[#07C160]" viewBox="0 0 24 24" fill="currentColor">
