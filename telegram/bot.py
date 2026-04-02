@@ -99,7 +99,8 @@ async def cmd_login(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if len(context.args) < 2:
         await update.message.reply_text(
             "Usage: /login <email> <password>\n"
-            "Example: /login you@email.com yourpassword"
+            "Example: /login you@email.com yourpassword\n\n"
+            "Use the email and password from your portal account."
         )
         return
 
@@ -115,12 +116,19 @@ async def cmd_login(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         user = result.scalar_one_or_none()
 
-        if not user or not user.hashed_password:
-            await update.message.reply_text("❌ Invalid email or password.")
+        if not user:
+            await update.message.reply_text("❌ No account found with that email.")
+            return
+
+        if not user.hashed_password:
+            await update.message.reply_text(
+                "❌ This account has no password set.\n"
+                "Please set a password via the portal first."
+            )
             return
 
         if not bcrypt.checkpw(password.encode(), user.hashed_password.encode()):
-            await update.message.reply_text("❌ Invalid email or password.")
+            await update.message.reply_text("❌ Wrong password.")
             return
 
         if user.payment_status == "pending_payment":
@@ -142,8 +150,6 @@ async def cmd_login(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         await db.commit()
 
-    base = SUB_BASE_URL.rstrip("/")
-    token = str(user.subscription_token)
     await update.message.reply_text(
         f"✅ Account linked successfully\\!\n\n"
         f"Username: *{user.username}*\n"
