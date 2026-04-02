@@ -11,7 +11,7 @@ export default function PaymentMethod() {
     username: string
     plan: string
     amount_usdt: string
-    amount_rmb: number
+    amount_usdt: string
     wallet: string
     network: string
     note: string

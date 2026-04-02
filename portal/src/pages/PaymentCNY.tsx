@@ -15,7 +15,7 @@ export default function PaymentCNY() {
     user_id: string
     username: string
     plan: string
-    amount_rmb: number
+    amount_usdt: string
     defaultMethod?: Method
   }
 
