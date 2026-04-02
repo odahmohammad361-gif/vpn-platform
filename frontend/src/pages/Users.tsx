@@ -67,7 +67,7 @@ function PlanModal({ user, onClose }: { user: any; onClose: () => void }) {
             <div key={p.id} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10">
               <div>
                 <p className="text-white text-sm font-medium">{p.name}</p>
-                <p className="text-gray-500 text-xs">{durationLabel[p.duration_months] ?? `${p.duration_months} months`} · {fmtBytes(p.monthly_quota_bytes)}/mo · <span className="text-yellow-400">¥{Number(p.price_rmb).toFixed(0)}/mo</span></p>
+                <p className="text-gray-500 text-xs">{durationLabel[p.duration_months] ?? `${p.duration_months} months`} · {fmtBytes(p.monthly_quota_bytes)}/mo · <span className="text-green-400">${Number(p.price_usdt).toFixed(2)} USD</span></p>
               </div>
               <button
                 onClick={() => assign.mutate(p.id)}

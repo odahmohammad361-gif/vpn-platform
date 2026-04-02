@@ -77,8 +77,8 @@ export default function PaymentMethod() {
                 <p className="text-gray-500 text-sm">Manual confirm · 人工确认</p>
               </div>
               <div className="text-right">
-                <p className="text-white font-bold">¥{info.amount_rmb}</p>
-                <p className="text-[#07C160] text-xs">CNY</p>
+                <p className="text-white font-bold">${info.amount_usdt} USD</p>
+                <p className="text-[#07C160] text-xs">USDT</p>
               </div>
             </div>
           </button>
@@ -95,8 +95,8 @@ export default function PaymentMethod() {
                 <p className="text-gray-500 text-sm">Manual confirm · 人工确认</p>
               </div>
               <div className="text-right">
-                <p className="text-white font-bold">¥{info.amount_rmb}</p>
-                <p className="text-[#1677FF] text-xs">CNY</p>
+                <p className="text-white font-bold">${info.amount_usdt} USD</p>
+                <p className="text-[#1677FF] text-xs">USDT</p>
               </div>
             </div>
           </button>

@@ -38,22 +38,20 @@ export default function Plans() {
               <th className="text-left px-5 py-3.5 text-gray-500 text-xs font-semibold uppercase tracking-wider">Name</th>
               <th className="text-left px-5 py-3.5 text-gray-500 text-xs font-semibold uppercase tracking-wider">Duration</th>
               <th className="text-left px-5 py-3.5 text-gray-500 text-xs font-semibold uppercase tracking-wider">Monthly Quota</th>
-              <th className="text-left px-5 py-3.5 text-gray-500 text-xs font-semibold uppercase tracking-wider">Price RMB</th>
-              <th className="text-left px-5 py-3.5 text-gray-500 text-xs font-semibold uppercase tracking-wider">Price USDT</th>
+              <th className="text-left px-5 py-3.5 text-gray-500 text-xs font-semibold uppercase tracking-wider">Price</th>
               <th className="text-right px-5 py-3.5 text-gray-500 text-xs font-semibold uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5">
             {plans.length === 0 && (
-              <tr><td colSpan={6} className="text-center text-gray-600 py-12">No plans configured</td></tr>
+              <tr><td colSpan={5} className="text-center text-gray-600 py-12">No plans configured</td></tr>
             )}
             {plans.map((p: any) => (
               <tr key={p.id} className="hover:bg-white/3 transition-colors">
                 <td className="px-5 py-4 text-white font-medium">{p.name}</td>
                 <td className="px-5 py-4 text-gray-300">{durationLabel[p.duration_months] ?? `${p.duration_months} months`}</td>
                 <td className="px-5 py-4 text-gray-300">{fmtBytes(p.monthly_quota_bytes)} / month</td>
-                <td className="px-5 py-4 text-yellow-400 font-medium">¥{Number(p.price_rmb).toFixed(0)}</td>
-                <td className="px-5 py-4 text-green-400 font-medium">${Number(p.price_usdt).toFixed(0)}</td>
+                <td className="px-5 py-4 text-green-400 font-medium">${Number(p.price_usdt).toFixed(2)} USD</td>
                 <td className="px-5 py-4 text-right">
                   <button
                     onClick={() => { if (confirm("Delete plan?")) deletePlan.mutate(p.id); }}

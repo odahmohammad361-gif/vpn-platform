@@ -121,8 +121,8 @@ export default function PaymentCNY() {
         }`}>
           <p className="text-gray-400 text-sm mb-1">Send exactly · 请转账精确金额</p>
           <div className="flex items-center justify-center gap-2">
-            <span className="text-4xl font-bold text-white">¥{info.amount_rmb}</span>
-            <span className={`font-semibold text-sm ${isWechat ? 'text-[#07C160]' : 'text-[#1677FF]'}`}>CNY</span>
+            <span className="text-4xl font-bold text-white">${info.amount_usdt}</span>
+            <span className={`font-semibold text-sm ${isWechat ? 'text-[#07C160]' : 'text-[#1677FF]'}`}>USD</span>
           </div>
           <p className="text-yellow-400/70 text-xs mt-2">⚠ Use this exact amount · 请转账精确金额</p>
         </div>

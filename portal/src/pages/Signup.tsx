@@ -65,7 +65,7 @@ export default function Signup() {
         plan_id: selectedPlan.id,
         telegram_username: telegramUsername.trim() || null,
       })
-      navigate('/payment-method', { state: { ...res.data, amount_rmb: selectedPlan.price_rmb } })
+      navigate('/payment-method', { state: { ...res.data, amount_usdt: selectedPlan.price_usdt } })
     } catch (err: any) {
       const detail = err?.response?.data?.detail
       if (err?.response?.status === 409) setApiError(detail || 'Username or email already taken · 用户名或邮箱已被注册')
@@ -141,8 +141,7 @@ export default function Signup() {
                     <span className="text-gray-400 text-sm">{durationLabel[p.duration_months] ?? `${p.duration_months} months`}</span>
                     {isSelected && <Check className="w-4 h-4 text-brand-400" />}
                   </div>
-                  <div className="text-2xl font-bold text-white mb-0.5">${p.price_usdt} <span className="text-sm font-normal text-gray-500">USDT</span></div>
-                  <div className="text-gray-600 text-xs mb-4">≈ ¥{p.price_rmb} RMB</div>
+                  <div className="text-2xl font-bold text-white mb-4">${p.price_usdt} <span className="text-sm font-normal text-gray-500">USD</span></div>
                   <ul className="space-y-1.5">
                     {PLAN_FEATURES.map((f: string) => (
                       <li key={f} className="flex items-center gap-2 text-xs text-gray-400">
