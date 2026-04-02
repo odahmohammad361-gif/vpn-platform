@@ -1,7 +1,7 @@
 """
 VPN Platform Telegram Bot
 Commands:
-  User:  /start, /login <token>, /usage, /sub, /help
+  User:  /start, /login <email> <password>, /usage, /sub, /help
   Admin: /users, /adduser, /disable <username>, /enable <username>, /broadcast <msg>
 """
 
@@ -89,8 +89,8 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             "Welcome to VPN Platform\\! 🔐\n\n"
             "To link your account, use:\n"
-            "`/login YOUR_TOKEN`\n\n"
-            "Your token is in your subscription URL\\.",
+            "`/login your@email.com yourpassword`\n\n"
+            "Use the email and password from your portal account\\.",
             parse_mode="MarkdownV2",
         )
 
@@ -158,7 +158,7 @@ async def cmd_usage(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user = await get_user_by_telegram(db, update.effective_user.id)
 
     if not user:
-        await update.message.reply_text("Account not linked. Use /login YOUR_TOKEN first.")
+        await update.message.reply_text("Account not linked. Use /login your@email.com yourpassword first.")
         return
 
     used = user.bytes_used
