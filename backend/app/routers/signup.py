@@ -109,6 +109,13 @@ async def signup(body: SignupRequest, db: AsyncSession = Depends(get_db)):
     if not plan:
         raise HTTPException(404, "Plan not found")
 
+    # Check user limit
+    user_count = (await db.execute(
+        select(func.count(User.id)).where(User.deleted_at.is_(None))
+    )).scalar() or 0
+    if user_count >= 30:
+        raise HTTPException(403, "Registration is currently closed · 注册暂时关闭")
+
     # Check username taken
     existing = await db.execute(
         select(User).where(User.username == body.username, User.deleted_at.is_(None))
