@@ -110,7 +110,7 @@ export default function Landing() {
 
       {/* Footer */}
       <footer className="text-center py-6 text-gray-600 text-sm border-t border-white/5">
-        © 2025 SayMyName97 · All rights reserved
+        © 2026 SayMyName978 · All rights reserved
       </footer>
     </div>
   )
