@@ -321,7 +321,7 @@ cat > /usr/local/bin/vpn-agent.sh << 'AGENT_EOF'
 #  Syncs users, reports traffic, watchdog, AdGuard
 # ================================================
 
-API_BASE="REPLACE_WITH_API_BASE/api/agent"
+API_BASE="REPLACE_WITH_API_BASE/agent"
 SERVER_ID="REPLACE_WITH_SERVER_UUID"
 AGENT_SECRET="REPLACE_WITH_AGENT_SECRET"
 SS_CONFIG="/etc/shadowsocks/config.json"
