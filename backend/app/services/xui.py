@@ -36,7 +36,7 @@ async def add_vless_client(
                 "id": inbound_id,
                 "settings": f'{{"clients": [{{"id": "{client_uuid}", "flow": "xtls-rprx-vision", "email": "{email}", "limitIpCount": 0, "totalGB": 0, "expiryTime": 0, "enable": true, "tgId": "", "subId": ""}}]}}',
             }
-            r = await client.post(f"{xui_url}/xui/API/inbounds/addClient", json=payload)
+            r = await client.post(f"{xui_url}/panel/api/inbounds/addClient", json=payload)
             success = r.status_code == 200 and r.json().get("success")
             if not success:
                 logger.error(f"[xui] addClient failed: {r.text}")
@@ -58,7 +58,7 @@ async def delete_vless_client(
         if not await _login(client, xui_url, xui_username, xui_password):
             return False
         try:
-            r = await client.post(f"{xui_url}/xui/API/inbounds/{inbound_id}/delClient/{client_uuid}")
+            r = await client.post(f"{xui_url}/panel/api/inbounds/{inbound_id}/delClient/{client_uuid}")
             success = r.status_code == 200 and r.json().get("success")
             if not success:
                 logger.error(f"[xui] delClient failed: {r.text}")
@@ -86,7 +86,7 @@ async def set_vless_client_enabled(
                 "id": inbound_id,
                 "settings": f'{{"clients": [{{"id": "{client_uuid}", "flow": "xtls-rprx-vision", "email": "{email}", "limitIpCount": 0, "totalGB": 0, "expiryTime": 0, "enable": {str(enabled).lower()}, "tgId": "", "subId": ""}}]}}',
             }
-            r = await client.post(f"{xui_url}/xui/API/inbounds/updateClient/{client_uuid}", json=payload)
+            r = await client.post(f"{xui_url}/panel/api/inbounds/updateClient/{client_uuid}", json=payload)
             success = r.status_code == 200 and r.json().get("success")
             if not success:
                 logger.error(f"[xui] updateClient failed: {r.text}")
