@@ -151,11 +151,30 @@ function AssignModal({ user, servers, onClose }: { user: any; servers: any[]; on
         <div className="space-y-2">
           {servers.map((s: any) => {
             const assigned = assignedIds.has(s.id);
+            const slot = userServers.find((us: any) => us.server_id === s.id);
             return (
               <div key={s.id} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10">
                 <div>
                   <p className="text-white text-sm font-medium">{s.name}</p>
                   <p className="text-gray-500 text-xs font-mono">{s.host}</p>
+                  {assigned && slot && (
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      <span className="px-1.5 py-0.5 rounded text-xs bg-blue-500/15 text-blue-400">
+                        SS :{slot.port}
+                      </span>
+                      {slot.vless_uuid ? (
+                        <span className="px-1.5 py-0.5 rounded text-xs bg-purple-500/15 text-purple-400">
+                          VLESS ✓
+                        </span>
+                      ) : (
+                        s.vless_port && (
+                          <span className="px-1.5 py-0.5 rounded text-xs bg-white/5 text-gray-600">
+                            VLESS —
+                          </span>
+                        )
+                      )}
+                    </div>
+                  )}
                 </div>
                 <button
                   onClick={() => assigned ? remove.mutate(s.id) : assign.mutate(s.id)}

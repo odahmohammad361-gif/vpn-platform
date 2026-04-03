@@ -44,6 +44,12 @@ export default function Stats() {
     refetchInterval: 60000,
   });
 
+  const { data: serverStats = [] } = useQuery({
+    queryKey: ["stats-servers"],
+    queryFn: () => api.get("/stats/servers").then((r) => r.data),
+    refetchInterval: 30000,
+  });
+
   const totalTraffic = traffic.reduce((sum: number, d: any) => sum + (d.upload || 0) + (d.download || 0), 0);
   const maxUserBytes = topUsers.length > 0 ? topUsers[0].bytes_used : 1;
 
@@ -97,6 +103,35 @@ export default function Stats() {
             <Bar dataKey="upload"   name="Upload"   fill="#22c55e" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
+      </div>
+
+      {/* Server traffic */}
+      <div className="glass rounded-2xl p-6">
+        <h2 className="text-white font-semibold mb-5">Server Traffic Report</h2>
+        <div className="space-y-3">
+          {serverStats.map((s: any) => {
+            const isOnline = s.last_seen_at && Math.abs(Date.now() - new Date(s.last_seen_at).getTime()) < 300000;
+            return (
+              <div key={s.id} className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/10">
+                <div className="flex items-center gap-3">
+                  <div className={`w-2 h-2 rounded-full ${isOnline ? "bg-green-400" : "bg-gray-600"}`} />
+                  <div>
+                    <p className="text-white text-sm font-medium">{s.name}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-xs text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded">SS</span>
+                      {s.vless_port && <span className="text-xs text-purple-400 bg-purple-500/10 px-1.5 py-0.5 rounded">VLESS</span>}
+                      <span className="text-gray-600 text-xs">{s.user_count} users</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-white text-sm font-medium">{fmtBytes(s.traffic_today_bytes)}</p>
+                  <p className="text-gray-600 text-xs">{fmtBytes(s.traffic_30d_bytes)} / 30d</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Top users */}

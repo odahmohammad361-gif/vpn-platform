@@ -110,12 +110,20 @@ export default function Servers() {
                       </span>
                     </div>
                     <p className="text-gray-400 text-sm font-mono mt-0.5">{s.host}</p>
-                    <div className="flex items-center gap-3 mt-1.5 text-gray-600 text-xs">
+                    <div className="flex items-center gap-3 mt-1.5 text-gray-600 text-xs flex-wrap">
                       <span className="px-1.5 py-0.5 rounded text-xs font-semibold bg-blue-500/15 text-blue-400">
                         Shadowsocks
                       </span>
-                      <span>·</span>
                       <span>Ports {s.port_range_start}–{s.port_range_end}</span>
+                      {s.vless_port && (
+                        <>
+                          <span>·</span>
+                          <span className="px-1.5 py-0.5 rounded text-xs font-semibold bg-purple-500/15 text-purple-400">
+                            VLESS+Reality
+                          </span>
+                          <span>:{s.vless_port}</span>
+                        </>
+                      )}
                       <span>·</span>
                       <span className="flex items-center gap-1">
                         <Activity className="w-3 h-3" />
