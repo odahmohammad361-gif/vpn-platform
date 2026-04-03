@@ -6,7 +6,7 @@
 - **Frontend**: React + Vite + TailwindCSS (admin dashboard)
 - **Portal**: React + Vite (user self-service)
 - **Telegram**: Python bot
-- **Proxy**: Shadowsocks-Rust (multi-port, per-user)
+- **Proxy**: Shadowsocks-Rust (multi-port, per-user) + VLESS+Reality (via x-ui, SG only)
 - **DNS**: AdGuard Home (optional, per-server)
 - **Infra**: Docker Compose + nginx on AWS EC2 Ubuntu
 
@@ -16,21 +16,26 @@
 backend/app/
 ├── routers/        — API endpoints
 │   ├── auth.py         — Admin JWT login
-│   ├── users.py        — User CRUD + server assignment
+│   ├── users.py        — User CRUD + server assignment + VLESS client management
 │   ├── servers.py      — Server management
 │   ├── agent.py        — VPN agent endpoints (heartbeat, traffic, config)
-│   ├── subscription.py — Public sub URLs (/sub/<token>)
+│   ├── subscription.py — Public sub URLs (/sub/<token>) — returns SS + VLESS URIs
 │   ├── portal.py       — User portal login/dashboard
 │   ├── signup.py       — User self-registration
+│   ├── stats.py        — Stats overview, traffic, top users, per-server report
 │   └── plans.py        — Subscription plans
 ├── models/
-│   ├── user.py         — User, UserServer
-│   ├── server.py       — Server
+│   ├── user.py         — User, UserServer (has vless_uuid field)
+│   ├── server.py       — Server (has xui_url, xui_inbound_id, vless_port, vless_public_key, vless_short_id, vless_sni)
 │   ├── traffic.py      — TrafficLog, DailyTraffic
 │   ├── plan.py         — Plan
 │   └── device.py       — Device (tracks sub fetch IPs)
 ├── services/
-│   └── subscription.py — Builds Shadowrocket/Clash/v2rayNG/Surge configs
+│   ├── subscription.py — Builds Shadowrocket/Clash/v2rayNG/Surge configs
+│   ├── xui.py          — x-ui API client (add/delete/enable/disable VLESS clients)
+│   └── scheduler.py    — Background jobs: traffic aggregation, quota reset, VLESS traffic sync
+├── utils/
+│   └── base64_utils.py — build_ss_uri, build_vless_uri, encode_subscription
 ├── config.py           — Settings from .env
 ├── database.py         — Async SQLAlchemy engine
 ├── dependencies.py     — JWT auth dependency
@@ -71,6 +76,23 @@ Every 30 seconds it:
 
 Agent authentication: HMAC-SHA256 signature on `server_id:timestamp:body`.
 
+## VLESS+Reality (x-ui)
+
+Only SG-FAST-1 has VLESS+Reality enabled via 3x-ui panel.
+
+- x-ui panel: `https://sg.saymy-vpn.com:6689/lT9dCkBpvaZRb8dLn5`
+- Inbound ID: 1, Port: 55710, SNI: www.sony.com
+- Per-user VLESS clients are created automatically on server assignment
+- VLESS traffic is synced from x-ui every 5 minutes into DailyTraffic
+- VLESS clients are disabled automatically on quota exceeded / expiry
+
+When a user is assigned to SG, `users.py` calls `services/xui.py → add_vless_client()`.
+When removed/disabled, it calls `delete_vless_client()` or `set_vless_client_enabled(False)`.
+
+To add VLESS to a new server, set these columns in the `servers` table:
+- `xui_url`, `xui_username`, `xui_password`, `xui_inbound_id`
+- `vless_port`, `vless_public_key`, `vless_short_id`, `vless_sni`
+
 ## Device Tracking
 
 When a user fetches their subscription URL (`/sub/<token>`), their IP is stored in the `devices` table (upsert on `user_id + ip_address`). The admin Users page shows the count of unique device IPs per user.
@@ -81,7 +103,9 @@ Each user gets one port per server (same port number across all servers). Ports 
 
 ## Traffic Accounting
 
-iptables chains `VPN_IN` / `VPN_OUT` count bytes per port. Agent reads with `iptables -xvnL`, resets with `iptables -Z` after reporting. Client IPs detected via `ss -tn state established` (local `parts[2]`, peer `parts[3]`).
+**Shadowsocks**: iptables chains `VPN_IN` / `VPN_OUT` count bytes per port. Agent reads with `iptables -xvnL`, resets with `iptables -Z` after reporting. Client IPs detected via `ss -tn state established` (local `parts[2]`, peer `parts[3]`).
+
+**VLESS**: scheduler polls x-ui `/panel/api/inbounds/<id>/clientStats` every 5 minutes, writes to DailyTraffic, resets x-ui counters after reading.
 
 ## Environment Variables
 
@@ -94,11 +118,11 @@ See `.env.example` for all variables. Key ones:
 
 ## Servers
 
-| Name | IP | ID |
-|------|----|----|
-| eu-1 | 31.220.80.56 | d1305317-46cf-45fe-8c14-5faaf37b0bb2 |
-| SG-FAST-1 | 147.93.158.82 | 94099c2a-e881-4bea-93d2-6212cd6eec2a |
-| eu-2 | 213.199.39.77 | 5b6cd2db-a6a4-4cb7-83f2-a388b047f8ca |
+| Name | Host | ID |
+|------|------|----|
+| eu-1 | eu1.saymy-vpn.com | d1305317-46cf-45fe-8c14-5faaf37b0bb2 |
+| SG-FAST-1 | sg.saymy-vpn.com | 94099c2a-e881-4bea-93d2-6212cd6eec2a |
+| eu-2 | eu2.saymy-vpn.com | 5b6cd2db-a6a4-4cb7-83f2-a388b047f8ca |
 
 ## Common Issues
 
@@ -107,3 +131,5 @@ See `.env.example` for all variables. Key ones:
 - **DB connection lost**: check `pool_pre_ping=True` in `database.py`
 - **client_ip not reported**: verify `ss -tn state established` uses `parts[2]`/`parts[3]` (not `[3]`/`[4]`)
 - **Subscription showing old IP**: check `SUBSCRIPTION_BASE_URL` in `.env`
+- **VLESS client not created**: check backend logs for xui errors, verify xui_url/credentials in servers table
+- **Remove server 500 error**: ensure `traffic_logs` FK has ON DELETE CASCADE — run: `ALTER TABLE traffic_logs DROP CONSTRAINT traffic_logs_user_server_id_fkey, ADD CONSTRAINT traffic_logs_user_server_id_fkey FOREIGN KEY (user_server_id) REFERENCES user_servers(id) ON DELETE CASCADE`
