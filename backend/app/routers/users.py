@@ -15,6 +15,7 @@ from app.models.traffic import DailyTraffic, TrafficLog
 from app.models.plan import Plan
 from app.models.device import Device
 from app.config import settings
+from app.services.xui import add_vless_client, delete_vless_client, set_vless_client_enabled
 
 
 def _add_months(dt: datetime, months: int) -> datetime:
@@ -140,6 +141,17 @@ async def enable_user(user_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     user.is_active = True
     user.disabled_reason = None
     await db.commit()
+    # Re-enable VLESS clients
+    rows = await db.execute(
+        select(UserServer, Server).join(Server, UserServer.server_id == Server.id)
+        .where(UserServer.user_id == user_id)
+    )
+    for slot, server in rows.all():
+        if slot.vless_uuid and server.xui_url and server.xui_inbound_id:
+            await set_vless_client_enabled(
+                server.xui_url, server.xui_username, server.xui_password,
+                server.xui_inbound_id, slot.vless_uuid, user.username, True,
+            )
     return {"status": "enabled"}
 
 
@@ -151,8 +163,18 @@ async def disable_user(user_id: uuid.UUID, reason: str = "manual", db: AsyncSess
     user.is_active = False
     user.disabled_reason = reason
     # Force re-sync so agent removes this user's port from shadowsocks
-    affected = await db.execute(select(UserServer.server_id).where(UserServer.user_id == user_id))
-    server_ids = affected.scalars().all()
+    rows = await db.execute(
+        select(UserServer, Server).join(Server, UserServer.server_id == Server.id)
+        .where(UserServer.user_id == user_id)
+    )
+    server_ids = []
+    for slot, server in rows.all():
+        server_ids.append(server.id)
+        if slot.vless_uuid and server.xui_url and server.xui_inbound_id:
+            await set_vless_client_enabled(
+                server.xui_url, server.xui_username, server.xui_password,
+                server.xui_inbound_id, slot.vless_uuid, user.username, False,
+            )
     if server_ids:
         await db.execute(
             update(Server).where(Server.id.in_(server_ids)).values(force_sync=True)
@@ -204,15 +226,25 @@ async def assign_server(user_id: uuid.UUID, server_id: uuid.UUID, db: AsyncSessi
         if free_port > server.port_range_end:
             raise HTTPException(409, "No free ports on this server")
 
+    vless_uuid = str(uuid.uuid4())
     slot = UserServer(
         user_id=user_id,
         server_id=server_id,
         port=free_port,
         password=shared_password,
+        vless_uuid=vless_uuid,
     )
     db.add(slot)
     await db.commit()
     await db.refresh(slot)
+
+    # Create VLESS client in x-ui if this server has x-ui configured
+    if server.xui_url and server.xui_inbound_id:
+        await add_vless_client(
+            server.xui_url, server.xui_username, server.xui_password,
+            server.xui_inbound_id, vless_uuid, user.username,
+        )
+
     return slot
 
 
@@ -225,14 +257,19 @@ async def list_user_servers(user_id: uuid.UUID, db: AsyncSession = Depends(get_d
 @router.delete("/{user_id}/servers/{server_id}", status_code=204)
 async def remove_server(user_id: uuid.UUID, server_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
-        select(UserServer).where(
-            UserServer.user_id == user_id,
-            UserServer.server_id == server_id
-        )
+        select(UserServer, Server)
+        .join(Server, UserServer.server_id == Server.id)
+        .where(UserServer.user_id == user_id, UserServer.server_id == server_id)
     )
-    slot = result.scalar_one_or_none()
-    if not slot:
+    row = result.first()
+    if not row:
         raise HTTPException(404, "Assignment not found")
+    slot, server = row
+    if slot.vless_uuid and server.xui_url and server.xui_inbound_id:
+        await delete_vless_client(
+            server.xui_url, server.xui_username, server.xui_password,
+            server.xui_inbound_id, slot.vless_uuid,
+        )
     await db.delete(slot)
     await db.commit()
 
@@ -305,13 +342,21 @@ async def assign_plan(user_id: uuid.UUID, plan_id: uuid.UUID, db: AsyncSession =
         if free_port > server.port_range_end:
             continue  # Skip if no free ports on this server
 
+        vless_uuid = str(uuid.uuid4())
         slot = UserServer(
             user_id=user_id,
             server_id=server.id,
             port=free_port,
             password=shared_password,
+            vless_uuid=vless_uuid,
         )
         db.add(slot)
+
+        if server.xui_url and server.xui_inbound_id:
+            await add_vless_client(
+                server.xui_url, server.xui_username, server.xui_password,
+                server.xui_inbound_id, vless_uuid, user.username,
+            )
 
     await db.commit()
     await db.refresh(user)

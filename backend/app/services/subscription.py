@@ -53,12 +53,13 @@ _SURGE_RULES = [
 ]
 
 
-def build_shadowrocket(slots: list[dict]) -> str:
+def build_shadowrocket(slots: list[dict], vless_uris: list[str] | None = None) -> str:
     uris = [build_ss_uri(s["method"], s["password"], s["host"], s["port"], s["name"]) for s in slots]
+    uris += (vless_uris or [])
     return encode_subscription(uris)
 
 
-def build_clash(slots: list[dict]) -> str:
+def build_clash(slots: list[dict], vless_uris: list[str] | None = None) -> str:
     proxies = [
         {
             "name": s["name"],
@@ -96,8 +97,9 @@ def build_clash(slots: list[dict]) -> str:
     return yaml.dump(config, allow_unicode=True, sort_keys=False)
 
 
-def build_v2rayng(slots: list[dict]) -> str:
+def build_v2rayng(slots: list[dict], vless_uris: list[str] | None = None) -> str:
     uris = [build_ss_uri(s["method"], s["password"], s["host"], s["port"], s["name"]) for s in slots]
+    uris += (vless_uris or [])
     return encode_subscription(uris)
 
 

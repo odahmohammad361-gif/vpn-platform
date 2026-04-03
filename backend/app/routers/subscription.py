@@ -11,6 +11,7 @@ from app.models.user import User, UserServer
 from app.models.server import Server
 from app.models.device import Device
 from app.services.subscription import build_shadowrocket, build_clash, build_v2rayng, build_surge_conf
+from app.utils.base64_utils import build_vless_uri
 from app.config import settings
 
 router = APIRouter(prefix="/sub", tags=["subscription"])
@@ -48,15 +49,16 @@ def _userinfo_header(user: User) -> str:
     return "; ".join(parts)
 
 
-def _respond(slots: list[dict], format: str, user: User | None = None):
+def _respond(slots: list[dict], format: str, user: User | None = None, vless_uris: list[str] | None = None):
+    vless_uris = vless_uris or []
     if format == "clash":
-        resp = Response(content=build_clash(slots), media_type="text/yaml")
+        resp = Response(content=build_clash(slots, vless_uris), media_type="text/yaml")
     elif format == "v2rayng":
-        resp = PlainTextResponse(build_v2rayng(slots))
+        resp = PlainTextResponse(build_v2rayng(slots, vless_uris))
     elif format == "surge":
         resp = PlainTextResponse(build_surge_conf(slots), media_type="text/plain")
     else:
-        resp = PlainTextResponse(build_shadowrocket(slots))
+        resp = PlainTextResponse(build_shadowrocket(slots, vless_uris))
     if user:
         resp.headers["Subscription-Userinfo"] = _userinfo_header(user)
         resp.headers["profile-title"] = settings.BRAND_NAME
@@ -111,18 +113,29 @@ async def get_subscription(
     )
     rows = result.all()
 
-    slots = [
-        {
+    slots = []
+    vless_uris = []
+    for us, server in rows:
+        slots.append({
             "name": server.name,
             "host": server.host,
             "port": us.port,
             "password": us.password,
             "method": server.method,
-        }
-        for us, server in rows
-    ]
+        })
+        if (us.vless_uuid and server.vless_port and server.vless_public_key
+                and server.vless_short_id and server.vless_sni):
+            vless_uris.append(build_vless_uri(
+                client_uuid=us.vless_uuid,
+                host=server.host,
+                port=server.vless_port,
+                public_key=server.vless_public_key,
+                short_id=server.vless_short_id,
+                sni=server.vless_sni,
+                name=f"{server.name}-VLESS",
+            ))
 
     if not slots:
         raise HTTPException(404, "No active servers assigned")
 
-    return _respond(slots, format, user)
+    return _respond(slots, format, user, vless_uris)

@@ -47,6 +47,7 @@ class UserServer(Base):
     server_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("servers.id", ondelete="CASCADE"))
     port: Mapped[int] = mapped_column(Integer, nullable=False)
     password: Mapped[str] = mapped_column(Text, nullable=False)
+    vless_uuid: Mapped[str | None] = mapped_column(String(36), nullable=True)
     is_synced: Mapped[bool] = mapped_column(Boolean, default=False)
     last_client_ip: Mapped[str | None] = mapped_column(String(45), nullable=True)
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
