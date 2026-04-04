@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, Wifi, WifiOff, Activity, Copy, Shield, ShieldOff, ExternalLink, Pencil, X } from "lucide-react";
+import { Plus, Trash2, Wifi, WifiOff, Activity, Copy, Shield, ShieldOff, ExternalLink, Pencil, X, Info } from "lucide-react";
 import api from "@/lib/api";
 
 const inputClass = "w-full px-4 py-2.5 rounded-xl bg-white/5 text-white border border-white/10 focus:outline-none focus:border-blue-500/60 transition placeholder-gray-600 text-sm";
@@ -13,6 +13,7 @@ function EditModal({ server, onClose }: { server: any; onClose: () => void }) {
     port_range_start: server.port_range_start ?? 20000,
     port_range_end: server.port_range_end ?? 29999,
     method: server.method ?? "chacha20-ietf-poly1305",
+    adguard_password: server.adguard_password ?? "",
     xui_url: server.xui_url ?? "",
     xui_username: server.xui_username ?? "",
     xui_password: server.xui_password ?? "",
@@ -67,6 +68,13 @@ function EditModal({ server, onClose }: { server: any; onClose: () => void }) {
           </div>
         </div>
 
+        {/* AdGuard */}
+        <div>
+          <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2">AdGuard Home</p>
+          <input className={inputClass} placeholder="AdGuard password (from setup output)" value={form.adguard_password}
+            onChange={(e) => setForm({ ...form, adguard_password: e.target.value })} />
+        </div>
+
         {/* x-ui / VLESS */}
         <div>
           <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2">VLESS+Reality (x-ui)</p>
@@ -108,10 +116,85 @@ function EditModal({ server, onClose }: { server: any; onClose: () => void }) {
   );
 }
 
+function CopyRow({ label, value }: { label: string; value: string | null | undefined }) {
+  if (!value) return null;
+  return (
+    <div className="flex items-center justify-between gap-3 py-2 border-b border-white/5 last:border-0">
+      <span className="text-gray-500 text-xs w-32 shrink-0">{label}</span>
+      <span className="text-gray-300 text-xs font-mono truncate flex-1">{value}</span>
+      <button onClick={() => navigator.clipboard.writeText(value)}
+        className="shrink-0 p-1 rounded hover:bg-white/10 text-gray-600 hover:text-gray-300 transition">
+        <Copy className="w-3 h-3" />
+      </button>
+    </div>
+  );
+}
+
+function ProfileModal({ server, onClose }: { server: any; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="glass rounded-2xl p-6 w-full max-w-lg space-y-5">
+        <div className="flex items-center justify-between">
+          <h2 className="text-white font-semibold text-lg">{server.name} — Credentials</h2>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 text-gray-500 hover:text-white transition">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Agent */}
+        <div>
+          <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2">Agent</p>
+          <div className="bg-white/3 rounded-xl px-4 py-1">
+            <CopyRow label="Server ID" value={server.id} />
+            <CopyRow label="Agent Secret" value={server.agent_secret} />
+            <CopyRow label="API Base" value="https://saymy-vpn.com/agent" />
+          </div>
+        </div>
+
+        {/* AdGuard */}
+        {server.adguard_password && (
+          <div>
+            <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2">AdGuard Home</p>
+            <div className="bg-white/3 rounded-xl px-4 py-1">
+              <CopyRow label="URL" value={`http://${server.host}:3000`} />
+              <CopyRow label="Username" value="admin" />
+              <CopyRow label="Password" value={server.adguard_password} />
+            </div>
+          </div>
+        )}
+
+        {/* x-ui / VLESS */}
+        {server.xui_url && (
+          <div>
+            <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2">x-ui Panel (VLESS+Reality)</p>
+            <div className="bg-white/3 rounded-xl px-4 py-1">
+              <CopyRow label="Panel URL" value={server.xui_url} />
+              <CopyRow label="Username" value={server.xui_username} />
+              <CopyRow label="Password" value={server.xui_password} />
+              <CopyRow label="Inbound ID" value={server.xui_inbound_id?.toString()} />
+              <CopyRow label="VLESS Port" value={server.vless_port?.toString()} />
+              <CopyRow label="Public Key" value={server.vless_public_key} />
+              <CopyRow label="Short ID" value={server.vless_short_id} />
+              <CopyRow label="SNI" value={server.vless_sni} />
+              {server.vless_host && <CopyRow label="VLESS Host" value={server.vless_host} />}
+            </div>
+          </div>
+        )}
+
+        <button onClick={onClose}
+          className="w-full px-4 py-2.5 bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl text-sm transition">
+          Close
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function Servers() {
   const qc = useQueryClient();
   const [creating, setCreating] = useState(false);
   const [editingServer, setEditingServer] = useState<any>(null);
+  const [profileServer, setProfileServer] = useState<any>(null);
   const [form, setForm] = useState({ name: "", host: "", api_port: 8080, port_range_start: 20000, port_range_end: 29999 });
 
   const { data: servers = [] } = useQuery({
@@ -144,6 +227,7 @@ export default function Servers() {
   return (
     <div className="space-y-6">
       {editingServer && <EditModal server={editingServer} onClose={() => setEditingServer(null)} />}
+      {profileServer && <ProfileModal server={profileServer} onClose={() => setProfileServer(null)} />}
 
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -252,6 +336,11 @@ export default function Servers() {
                       <ExternalLink className="w-4 h-4" />
                     </a>
                   )}
+                  <button onClick={() => setProfileServer(s)}
+                    className="p-2 rounded-xl bg-white/5 hover:bg-purple-500/20 hover:text-purple-400 text-gray-600 transition"
+                    title="View credentials">
+                    <Info className="w-4 h-4" />
+                  </button>
                   <button onClick={() => setEditingServer(s)}
                     className="p-2 rounded-xl bg-white/5 hover:bg-blue-500/20 hover:text-blue-400 text-gray-600 transition"
                     title="Edit server">

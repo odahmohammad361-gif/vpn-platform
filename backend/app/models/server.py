@@ -18,6 +18,7 @@ class Server(Base):
     method: Mapped[str] = mapped_column(String(64), default="chacha20-ietf-poly1305")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     adguard_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    adguard_password: Mapped[str | None] = mapped_column(String(128), nullable=True)
     force_sync: Mapped[bool] = mapped_column(Boolean, default=False)
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # x-ui / VLESS+Reality config (optional — only set on servers that have x-ui)

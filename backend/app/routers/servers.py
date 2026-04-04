@@ -42,6 +42,7 @@ class ServerUpdate(BaseModel):
     port_range_start: Optional[int] = None
     port_range_end: Optional[int] = None
     method: Optional[str] = None
+    adguard_password: Optional[str] = None
     xui_url: Optional[str] = None
     xui_username: Optional[str] = None
     xui_password: Optional[str] = None

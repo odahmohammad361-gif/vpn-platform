@@ -12,7 +12,7 @@ API_BASE="${3:-}"
 
 if [[ -z "$SERVER_ID" || -z "$AGENT_SECRET" || -z "$API_BASE" ]]; then
     echo "Usage: sudo bash server-setup.sh <SERVER_ID> <AGENT_SECRET> <API_BASE>"
-    echo "Example: sudo bash server-setup.sh abc-uuid secret123 https://localhost:443"
+    echo "Example: sudo bash server-setup.sh abc-uuid secret123 https://saymy-vpn.com/agent"
     exit 1
 fi
 
@@ -265,15 +265,15 @@ ufw allow 443/tcp         > /dev/null 2>&1 || true
 ufw allow 53/tcp          > /dev/null 2>&1 || true
 ufw allow 53/udp          > /dev/null 2>&1 || true
 ufw allow 3000/tcp        > /dev/null 2>&1 || true
-ufw allow 20000:29999/tcp > /dev/null 2>&1 || true
-ufw allow 20000:29999/udp > /dev/null 2>&1 || true
+ufw allow 30000:39999/tcp > /dev/null 2>&1 || true
+ufw allow 30000:39999/udp > /dev/null 2>&1 || true
 echo "y" | ufw enable     > /dev/null 2>&1 || true
 
 # Rate-limit new TCP connections to VPN ports: max 15 new per IP per minute
 # Saves iptables rules so they survive reboot (iptables-persistent)
-iptables -A INPUT -p tcp --dport 20000:29999 -m state --state NEW \
+iptables -A INPUT -p tcp --dport 30000:39999 -m state --state NEW \
     -m recent --name vpn_ratelimit --set 2>/dev/null || true
-iptables -A INPUT -p tcp --dport 20000:29999 -m state --state NEW \
+iptables -A INPUT -p tcp --dport 30000:39999 -m state --state NEW \
     -m recent --name vpn_ratelimit --update --seconds 60 --hitcount 15 -j DROP 2>/dev/null || true
 # UFW already persists rules across reboots natively
 
