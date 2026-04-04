@@ -25,6 +25,7 @@ class Server(Base):
     xui_username: Mapped[str | None] = mapped_column(String(128), nullable=True)
     xui_password: Mapped[str | None] = mapped_column(String(128), nullable=True)
     xui_inbound_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    vless_host: Mapped[str | None] = mapped_column(String(255), nullable=True)  # override host for VLESS URI (e.g. direct subdomain when SS uses relay)
     vless_port: Mapped[int | None] = mapped_column(Integer, nullable=True)
     vless_public_key: Mapped[str | None] = mapped_column(String(128), nullable=True)
     vless_short_id: Mapped[str | None] = mapped_column(String(32), nullable=True)

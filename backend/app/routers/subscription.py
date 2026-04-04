@@ -127,7 +127,7 @@ async def get_subscription(
                 and server.vless_short_id and server.vless_sni):
             vless_uris.append(build_vless_uri(
                 client_uuid=us.vless_uuid,
-                host=server.host,
+                host=server.vless_host or server.host,
                 port=server.vless_port,
                 public_key=server.vless_public_key,
                 short_id=server.vless_short_id,
