@@ -69,13 +69,11 @@ async def server_stats(db: AsyncSession = Depends(get_db)):
         )).scalar() or 0
         traffic_today = (await db.execute(
             select(func.sum(DailyTraffic.upload_bytes + DailyTraffic.download_bytes))
-            .join(UserServer, DailyTraffic.user_server_id == UserServer.id)
-            .where(UserServer.server_id == s.id, DailyTraffic.date == today)
+            .where(DailyTraffic.server_id == s.id, DailyTraffic.date == today)
         )).scalar() or 0
         traffic_30d = (await db.execute(
             select(func.sum(DailyTraffic.upload_bytes + DailyTraffic.download_bytes))
-            .join(UserServer, DailyTraffic.user_server_id == UserServer.id)
-            .where(UserServer.server_id == s.id, DailyTraffic.date >= since_30)
+            .where(DailyTraffic.server_id == s.id, DailyTraffic.date >= since_30)
         )).scalar() or 0
         result.append({
             "id": s.id,
