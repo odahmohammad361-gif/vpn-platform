@@ -154,6 +154,21 @@ export default function Stats() {
               </div>
             );
           })}
+
+          {/* Total row */}
+          {serverStats.length > 0 && (() => {
+            const total = serverStats.reduce((sum: number, s: any) => sum + (
+              serverPeriod === "daily" ? s.traffic_today_bytes
+              : serverPeriod === "weekly" ? s.traffic_7d_bytes
+              : s.traffic_30d_bytes
+            ), 0);
+            return (
+              <div className="flex items-center justify-between p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 mt-1">
+                <p className="text-blue-300 text-sm font-semibold">Total All Servers</p>
+                <p className="text-blue-300 text-sm font-semibold">{fmtBytes(total)}</p>
+              </div>
+            );
+          })()}
         </div>
       </div>
 
