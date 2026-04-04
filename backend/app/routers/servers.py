@@ -39,6 +39,18 @@ class ServerUpdate(BaseModel):
     name: Optional[str] = None
     host: Optional[str] = None
     is_active: Optional[bool] = None
+    port_range_start: Optional[int] = None
+    port_range_end: Optional[int] = None
+    method: Optional[str] = None
+    xui_url: Optional[str] = None
+    xui_username: Optional[str] = None
+    xui_password: Optional[str] = None
+    xui_inbound_id: Optional[int] = None
+    vless_host: Optional[str] = None
+    vless_port: Optional[int] = None
+    vless_public_key: Optional[str] = None
+    vless_short_id: Optional[str] = None
+    vless_sni: Optional[str] = None
 
 
 @router.get("")
