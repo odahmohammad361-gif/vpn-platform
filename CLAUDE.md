@@ -6,7 +6,7 @@
 - **Frontend**: React + Vite + TailwindCSS (admin dashboard)
 - **Portal**: React + Vite (user self-service)
 - **Telegram**: Python bot
-- **Proxy**: Shadowsocks-Rust (multi-port, per-user) + VLESS+Reality (via x-ui, SG only)
+- **Proxy**: Shadowsocks-Rust (multi-port, per-user) + VLESS+Reality (via x-ui, SG + EU1 + JP1)
 - **DNS**: AdGuard Home (optional, per-server)
 - **Infra**: Docker Compose + nginx on AWS EC2 Ubuntu
 
@@ -78,10 +78,15 @@ Agent authentication: HMAC-SHA256 signature on `server_id:timestamp:body`.
 
 ## VLESS+Reality (x-ui)
 
-Only SG-FAST-1 has VLESS+Reality enabled via 3x-ui panel.
+SG-FAST-1, EU1, and JP1 have VLESS+Reality enabled via 3x-ui panel.
 
-- x-ui panel: `https://sg.saymy-vpn.com:6689/lT9dCkBpvaZRb8dLn5`
-- Inbound ID: 1, Port: 55710, SNI: www.sony.com
+| Server | x-ui Panel | Port | SNI |
+|--------|-----------|------|-----|
+| SG-FAST-1 | `https://sg.saymy-vpn.com:6689/lT9dCkBpvaZRb8dLn5` | 55710 | www.sony.com |
+| EU1 | `https://eu1.saymy-vpn.com:42637/yTrwqKbH3MCtbHO7YI` | 55710 | www.apple.com |
+| JP1 | `https://jp1.saymy-vpn.com:52277/QGJwKt2MlkFa2jQqbk` | 55710 | www.apple.com |
+
+- Inbound ID: 1 on all servers
 - Per-user VLESS clients are created automatically on server assignment
 - VLESS traffic is synced from x-ui every 5 minutes into DailyTraffic
 - VLESS clients are disabled automatically on quota exceeded / expiry
