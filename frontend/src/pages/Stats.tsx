@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { Users, Database, TrendingUp, Server } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
@@ -26,6 +27,8 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export default function Stats() {
+  const [serverPeriod, setServerPeriod] = useState<"daily" | "weekly" | "monthly">("daily");
+
   const { data: overview } = useQuery({
     queryKey: ["stats-overview"],
     queryFn: () => api.get("/stats/overview").then((r) => r.data),
@@ -107,10 +110,30 @@ export default function Stats() {
 
       {/* Server traffic */}
       <div className="glass rounded-2xl p-6">
-        <h2 className="text-white font-semibold mb-5">Server Traffic Report</h2>
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-white font-semibold">Server Traffic Report</h2>
+          <div className="flex gap-1">
+            {(["daily", "weekly", "monthly"] as const).map((p) => (
+              <button key={p} onClick={() => setServerPeriod(p)}
+                className={`px-3 py-1 rounded-lg text-xs font-medium transition ${
+                  serverPeriod === p
+                    ? "bg-blue-600 text-white"
+                    : "bg-white/5 text-gray-400 hover:bg-white/10"
+                }`}>
+                {p.charAt(0).toUpperCase() + p.slice(1)}
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="space-y-3">
           {serverStats.map((s: any) => {
             const isOnline = s.last_seen_at && Math.abs(Date.now() - new Date(s.last_seen_at).getTime()) < 300000;
+            const trafficValue = serverPeriod === "daily"
+              ? s.traffic_today_bytes
+              : serverPeriod === "weekly"
+              ? s.traffic_7d_bytes
+              : s.traffic_30d_bytes;
+            const periodLabel = serverPeriod === "daily" ? "today" : serverPeriod === "weekly" ? "7d" : "30d";
             return (
               <div key={s.id} className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/10">
                 <div className="flex items-center gap-3">
@@ -125,8 +148,8 @@ export default function Stats() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-white text-sm font-medium">{fmtBytes(s.traffic_today_bytes)}</p>
-                  <p className="text-gray-600 text-xs">{fmtBytes(s.traffic_30d_bytes)} / 30d</p>
+                  <p className="text-white text-sm font-medium">{fmtBytes(trafficValue)}</p>
+                  <p className="text-gray-500 text-xs">{periodLabel}</p>
                 </div>
               </div>
             );

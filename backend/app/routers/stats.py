@@ -61,6 +61,7 @@ async def top_users(limit: int = 10, db: AsyncSession = Depends(get_db)):
 async def server_stats(db: AsyncSession = Depends(get_db)):
     servers = (await db.execute(select(Server))).scalars().all()
     today = datetime.utcnow().date()
+    since_7  = today - timedelta(days=7)
     since_30 = today - timedelta(days=30)
     result = []
     for s in servers:
@@ -70,6 +71,10 @@ async def server_stats(db: AsyncSession = Depends(get_db)):
         traffic_today = (await db.execute(
             select(func.sum(DailyTraffic.upload_bytes + DailyTraffic.download_bytes))
             .where(DailyTraffic.server_id == s.id, DailyTraffic.date == today)
+        )).scalar() or 0
+        traffic_7d = (await db.execute(
+            select(func.sum(DailyTraffic.upload_bytes + DailyTraffic.download_bytes))
+            .where(DailyTraffic.server_id == s.id, DailyTraffic.date >= since_7)
         )).scalar() or 0
         traffic_30d = (await db.execute(
             select(func.sum(DailyTraffic.upload_bytes + DailyTraffic.download_bytes))
@@ -83,6 +88,7 @@ async def server_stats(db: AsyncSession = Depends(get_db)):
             "last_seen_at": s.last_seen_at,
             "user_count": user_count,
             "traffic_today_bytes": traffic_today,
+            "traffic_7d_bytes": traffic_7d,
             "traffic_30d_bytes": traffic_30d,
             "vless_port": s.vless_port,
         })
