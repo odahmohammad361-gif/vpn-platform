@@ -406,7 +406,12 @@ print(json.dumps({str(e['port']): str(e['user_server_id']) for e in entries}))
 
     # Flush accumulated traffic before resetting iptables chains
     report_traffic
-    systemctl restart shadowsocks
+    user_count=$(echo "$config" | python3 -c "import sys,json; print(len(json.load(sys.stdin)))" 2>/dev/null || echo 0)
+    if [[ "$user_count" -gt 0 ]]; then
+        systemctl restart shadowsocks
+    else
+        systemctl stop shadowsocks 2>/dev/null || true
+    fi
     setup_accounting
     echo "[sync] Config written with $(echo "$config" | python3 -c "import sys,json; print(len(json.load(sys.stdin)))" 2>/dev/null) user(s)"
 
