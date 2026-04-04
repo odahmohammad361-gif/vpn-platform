@@ -123,6 +123,7 @@ See `.env.example` for all variables. Key ones:
 | eu-1 | eu1.saymy-vpn.com | d1305317-46cf-45fe-8c14-5faaf37b0bb2 |
 | SG-FAST-1 | sg.saymy-vpn.com | 94099c2a-e881-4bea-93d2-6212cd6eec2a |
 | eu-2 | eu2.saymy-vpn.com | 5b6cd2db-a6a4-4cb7-83f2-a388b047f8ca |
+| jp1 | jp1.saymy-vpn.com | 5725271a-92a6-4ba4-907b-604f886f4ae1 |
 
 ## Common Issues
 
