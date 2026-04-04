@@ -214,7 +214,9 @@ async def assign_server(user_id: uuid.UUID, server_id: uuid.UUID, db: AsyncSessi
     preferred_port = existing_slot.port if existing_slot else None
     shared_password = existing_slot.password if existing_slot else str(uuid.uuid4())
 
-    if preferred_port and preferred_port not in taken:
+    if (preferred_port
+            and preferred_port not in taken
+            and server.port_range_start <= preferred_port <= server.port_range_end):
         free_port = preferred_port
     else:
         # Always use max+1 — never reuse a port that was previously assigned
