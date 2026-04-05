@@ -80,12 +80,13 @@ Agent authentication: HMAC-SHA256 signature on `server_id:timestamp:body`.
 
 SG-FAST-1, EU1, and JP1 have VLESS+Reality enabled via 3x-ui panel.
 
-| Server | x-ui Panel | Port | SNI |
-|--------|-----------|------|-----|
-| SG-FAST-1 | `https://sg.saymy-vpn.com:6689/lT9dCkBpvaZRb8dLn5` | 55710 | www.sony.com |
-| EU1 | `https://eu1.saymy-vpn.com:42637/yTrwqKbH3MCtbHO7YI` | 55710 | www.apple.com |
-| JP1 | `https://jp1.saymy-vpn.com:52277/QGJwKt2MlkFa2jQqbk` | 55710 | www.apple.com |
+| Server | Host | Port | SNI |
+|--------|------|------|-----|
+| SG-FAST-1 | sg.saymy-vpn.com | 55710 | www.sony.com |
+| EU1 | eu1.saymy-vpn.com | 55710 | www.apple.com |
+| JP1 | jp1.saymy-vpn.com | 55710 | www.apple.com |
 
+- x-ui panel URLs and credentials are stored in the `servers` DB table (not in code)
 - Inbound ID: 1 on all servers
 - Per-user VLESS clients are created automatically on server assignment
 - VLESS traffic is synced from x-ui every 5 minutes into DailyTraffic
@@ -123,12 +124,14 @@ See `.env.example` for all variables. Key ones:
 
 ## Servers
 
-| Name | Host | ID |
-|------|------|----|
-| eu-1 | eu1.saymy-vpn.com | d1305317-46cf-45fe-8c14-5faaf37b0bb2 |
-| SG-FAST-1 | sg.saymy-vpn.com | 94099c2a-e881-4bea-93d2-6212cd6eec2a |
-| eu-2 | eu2.saymy-vpn.com | 5b6cd2db-a6a4-4cb7-83f2-a388b047f8ca |
-| jp1 | jp1.saymy-vpn.com | 5725271a-92a6-4ba4-907b-604f886f4ae1 |
+| Name | Host |
+|------|------|
+| eu-1 | eu1.saymy-vpn.com |
+| SG-FAST-1 | sg.saymy-vpn.com |
+| jp1 | jp1.saymy-vpn.com |
+| HK-FAST-1 | (AWS HK relay) |
+
+Server IDs and secrets are stored in the database only.
 
 ## Common Issues
 
