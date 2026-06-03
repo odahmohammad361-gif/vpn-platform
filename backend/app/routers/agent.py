@@ -108,7 +108,7 @@ async def heartbeat(
         select(UserServer).where(
             UserServer.server_id == server_id,
             UserServer.is_synced == False
-        )
+        ).limit(1)
     )
     sync_required = server.force_sync or (result.scalar_one_or_none() is not None)
     return {"sync_required": sync_required, "adguard_enabled": server.adguard_enabled}

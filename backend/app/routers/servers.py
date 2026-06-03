@@ -82,7 +82,7 @@ async def update_server(server_id: uuid.UUID, body: ServerUpdate, db: AsyncSessi
     server = await db.get(Server, server_id)
     if not server:
         raise HTTPException(404, "Server not found")
-    for k, v in body.model_dump(exclude_none=True).items():
+    for k, v in body.model_dump(exclude_unset=True).items():
         setattr(server, k, v)
     await db.commit()
     await db.refresh(server)

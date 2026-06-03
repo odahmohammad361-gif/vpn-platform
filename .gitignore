@@ -9,3 +9,9 @@ node_modules/
 dist/
 .DS_Store
 *.log
+_prod_snapshots/
+nginx/certs/
+.claude/
+*.tgz
+*.dump
+shadowsocks.pem

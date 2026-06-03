@@ -4,7 +4,7 @@ import calendar
 from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, text, delete, update, func, distinct
+from sqlalchemy import select, delete, update, func
 from pydantic import BaseModel, field_validator, model_validator
 from typing import Optional
 from app.database import get_db
@@ -13,7 +13,6 @@ from app.models.user import User, UserServer
 from app.models.server import Server
 from app.models.traffic import DailyTraffic, TrafficLog
 from app.models.plan import Plan
-from app.models.device import Device
 from app.config import settings
 from app.services.xui import add_vless_client, delete_vless_client, set_vless_client_enabled
 
@@ -43,15 +42,8 @@ class UserUpdate(BaseModel):
 
 
 async def _device_counts(db: AsyncSession, user_ids: list[uuid.UUID]) -> dict[uuid.UUID, int]:
-    """Return number of unique IPs that have fetched this user's subscription."""
-    if not user_ids:
-        return {}
-    rows = await db.execute(
-        select(Device.user_id, func.count(Device.ip_address))
-        .where(Device.user_id.in_(user_ids))
-        .group_by(Device.user_id)
-    )
-    return {row[0]: row[1] for row in rows.all()}
+    """Device limits are disabled; keep the response field stable for the admin UI."""
+    return {}
 
 
 @router.get("")

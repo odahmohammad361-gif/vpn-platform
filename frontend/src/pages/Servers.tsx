@@ -147,7 +147,7 @@ function ProfileModal({ server, onClose }: { server: any; onClose: () => void })
           <div className="bg-white/3 rounded-xl px-4 py-1">
             <CopyRow label="Server ID" value={server.id} />
             <CopyRow label="Agent Secret" value={server.agent_secret} />
-            <CopyRow label="API Base" value="https://saymy-vpn.com/agent" />
+            <CopyRow label="API Base" value="https://saymy-vpn.com" />
           </div>
         </div>
 
