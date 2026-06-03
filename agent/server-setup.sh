@@ -445,7 +445,7 @@ ensure_xray_cert() {
 
 sync_vless() {
     local config="$1"
-    local vless_count vless_sni
+    local vless_count vless_sni public_port listen_addr listen_port tls_mode
 
     vless_count=$(echo "$config" | jq '[.[] | select(.vless_uuid and .vless_port and .vless_sni and (.vless_transport == "grpc"))] | length' 2>/dev/null || echo 0)
     if [[ "$vless_count" -eq 0 ]]; then
@@ -455,9 +455,22 @@ sync_vless() {
     fi
 
     vless_sni=$(echo "$config" | jq -r '[.[] | select(.vless_uuid and .vless_port and .vless_sni and (.vless_transport == "grpc"))][0].vless_sni // empty')
-    ensure_xray_cert "$vless_sni" || { echo "[vless] TLS cert failed for ${vless_sni}"; return 1; }
+    public_port=$(echo "$config" | jq -r '[.[] | select(.vless_uuid and .vless_port and .vless_sni and (.vless_transport == "grpc"))][0].vless_port // empty')
 
-    echo "$config" | XRAY_CERT_DIR="$XRAY_CERT_DIR" python3 -c '
+    listen_addr="0.0.0.0"
+    listen_port="$public_port"
+    tls_mode="direct"
+
+    if [[ "$public_port" == "443" ]] && ss -ltnp 2>/dev/null | awk '$4 ~ /:443$/ && $0 !~ /xray/ {found=1} END {exit !found}'; then
+        listen_addr="127.0.0.1"
+        listen_port="10085"
+        tls_mode="proxy"
+        echo "[vless] Port 443 is already in use; using local gRPC proxy mode on 127.0.0.1:10085"
+    else
+        ensure_xray_cert "$vless_sni" || { echo "[vless] TLS cert failed for ${vless_sni}"; return 1; }
+    fi
+
+    echo "$config" | XRAY_CERT_DIR="$XRAY_CERT_DIR" XRAY_LISTEN_ADDR="$listen_addr" XRAY_LISTEN_PORT="$listen_port" XRAY_TLS_MODE="$tls_mode" python3 -c '
 import json, os, sys
 
 entries = [
@@ -466,6 +479,9 @@ entries = [
 ]
 first = entries[0]
 cert_dir = os.environ["XRAY_CERT_DIR"]
+listen_addr = os.environ["XRAY_LISTEN_ADDR"]
+listen_port = int(os.environ["XRAY_LISTEN_PORT"])
+tls_mode = os.environ["XRAY_TLS_MODE"]
 clients = []
 seen = set()
 for e in entries:
@@ -478,36 +494,40 @@ for e in entries:
         "email": e.get("username") or e.get("user_server_id") or uid,
     })
 
+stream_settings = {
+    "network": "grpc",
+    "security": "none",
+    "grpcSettings": {
+        "serviceName": first.get("vless_grpc_service_name") or "grpc",
+        "multiMode": False,
+    },
+}
+if tls_mode == "direct":
+    stream_settings["security"] = "tls"
+    stream_settings["tlsSettings"] = {
+        "serverName": first["vless_sni"],
+        "alpn": ["h2"],
+        "certificates": [
+            {
+                "certificateFile": f"{cert_dir}/fullchain.pem",
+                "keyFile": f"{cert_dir}/privkey.pem",
+            }
+        ],
+    }
+
 cfg = {
     "log": {"loglevel": "warning"},
     "inbounds": [
         {
             "tag": "vless-grpc-tls",
-            "listen": "0.0.0.0",
-            "port": int(first["vless_port"]),
+            "listen": listen_addr,
+            "port": listen_port,
             "protocol": "vless",
             "settings": {
                 "clients": clients,
                 "decryption": "none",
             },
-            "streamSettings": {
-                "network": "grpc",
-                "security": "tls",
-                "tlsSettings": {
-                    "serverName": first["vless_sni"],
-                    "alpn": ["h2"],
-                    "certificates": [
-                        {
-                            "certificateFile": f"{cert_dir}/fullchain.pem",
-                            "keyFile": f"{cert_dir}/privkey.pem",
-                        }
-                    ],
-                },
-                "grpcSettings": {
-                    "serviceName": first.get("vless_grpc_service_name") or "grpc",
-                    "multiMode": False,
-                },
-            },
+            "streamSettings": stream_settings,
             "sniffing": {
                 "enabled": True,
                 "destOverride": ["http", "tls", "quic"],
@@ -528,7 +548,7 @@ print(json.dumps(cfg, indent=2))
     fi
 
     systemctl restart xray
-    echo "[vless] Xray synced with ${vless_count} client(s) on ${vless_sni}"
+    echo "[vless] Xray synced with ${vless_count} client(s) for ${vless_sni} (${listen_addr}:${listen_port}, ${tls_mode})"
 }
 
 # ── Sync users — write config + restart ssserver ──
