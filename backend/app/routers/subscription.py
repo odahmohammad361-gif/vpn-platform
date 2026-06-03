@@ -9,6 +9,7 @@ from app.models.user import User, UserServer
 from app.models.server import Server
 from app.services.subscription import build_shadowrocket, build_clash, build_v2rayng, build_singbox, build_surge_conf
 from app.utils.base64_utils import build_vless_uri, build_vless_grpc_uri
+from app.utils.port_policy import is_vless_port
 from app.utils.short_codes import resolve_user_token
 from app.config import settings
 
@@ -74,7 +75,7 @@ def _respond(
 
 
 def _vless_node(us: UserServer, server: Server) -> tuple[dict, str] | None:
-    if not us.vless_uuid or not server.vless_port or not server.vless_sni:
+    if not us.vless_uuid or not is_vless_port(server.vless_port) or not server.vless_sni:
         return None
 
     host = server.vless_host or server.host

@@ -35,6 +35,7 @@ from app.models.plan import Plan
 from app.models.server import Server
 from app.config import settings
 from app.dependencies import get_current_admin
+from app.utils.port_policy import next_shadowsocks_port
 from app.utils.short_codes import short_uuid
 
 logger = logging.getLogger(__name__)
@@ -221,18 +222,11 @@ async def _activate_user(user: User, db: AsyncSession):
         if server.id in already_assigned:
             continue
 
-        taken_result = await db.execute(
-            select(UserServer.port).where(UserServer.server_id == server.id)
-        )
-        taken = set(taken_result.scalars().all())
-
-        max_port_result = await db.execute(
-            select(func.max(UserServer.port)).where(UserServer.server_id == server.id)
-        )
-        max_port = max_port_result.scalar() or (server.port_range_start - 1)
-        free_port = max_port + 1
-
-        if free_port > server.port_range_end:
+        try:
+            free_port = await next_shadowsocks_port(db, server, lock=True)
+        except ValueError:
+            continue
+        if free_port is None:
             continue
 
         db.add(UserServer(

@@ -11,6 +11,7 @@ from app.models.server import Server
 from app.models.user import User, UserServer
 from app.models.traffic import TrafficLog
 from app.utils.crypto import verify_agent_signature
+from app.utils.port_policy import is_vless_port
 from app.utils.short_codes import resolve_server_ref, short_secret
 
 router = APIRouter(prefix="/agent", tags=["agent"])
@@ -55,7 +56,7 @@ async def get_config(
         .where(User.is_active == True)
     )
     rows = result.all()
-    vless_enabled = bool(server.vless_port and server.vless_sni)
+    vless_enabled = bool(server.vless_sni and is_vless_port(server.vless_port))
     vless_is_reality = bool(server.vless_public_key and server.vless_short_id)
     vless_transport = "tcp" if vless_is_reality else "grpc"
     vless_security = "reality" if vless_is_reality else "tls"

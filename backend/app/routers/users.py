@@ -4,7 +4,7 @@ import calendar
 from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete, update, func
+from sqlalchemy import select, delete, update
 from pydantic import BaseModel, field_validator, model_validator
 from typing import Optional
 from app.database import get_db
@@ -15,6 +15,7 @@ from app.models.traffic import DailyTraffic, TrafficLog
 from app.models.plan import Plan
 from app.config import settings
 from app.services.xui import add_vless_client, delete_vless_client, set_vless_client_enabled
+from app.utils.port_policy import next_shadowsocks_port
 from app.utils.short_codes import short_uuid
 
 
@@ -193,12 +194,6 @@ async def assign_server(user_id: uuid.UUID, server_id: uuid.UUID, db: AsyncSessi
     if not user or not server:
         raise HTTPException(404, "User or Server not found")
 
-    # Lock port rows to prevent race conditions
-    used_ports = await db.execute(
-        select(UserServer.port).where(UserServer.server_id == server_id).with_for_update()
-    )
-    taken = set(used_ports.scalars().all())
-
     # Use the same port+password this user already has on another server
     existing_slot_result = await db.execute(
         select(UserServer.port, UserServer.password).where(UserServer.user_id == user_id).limit(1)
@@ -207,19 +202,12 @@ async def assign_server(user_id: uuid.UUID, server_id: uuid.UUID, db: AsyncSessi
     preferred_port = existing_slot.port if existing_slot else None
     shared_password = existing_slot.password if existing_slot else str(uuid.uuid4())
 
-    if (preferred_port
-            and preferred_port not in taken
-            and server.port_range_start <= preferred_port <= server.port_range_end):
-        free_port = preferred_port
-    else:
-        # Always use max+1 — never reuse a port that was previously assigned
-        max_port_result = await db.execute(
-            select(func.max(UserServer.port)).where(UserServer.server_id == server_id)
-        )
-        max_port = max_port_result.scalar() or (server.port_range_start - 1)
-        free_port = max_port + 1
-        if free_port > server.port_range_end:
-            raise HTTPException(409, "No free ports on this server")
+    try:
+        free_port = await next_shadowsocks_port(db, server, preferred_port, lock=True)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc))
+    if free_port is None:
+        raise HTTPException(409, "No free Shadowsocks ports on this server")
 
     vless_uuid = str(uuid.uuid4())
     slot = UserServer(
@@ -323,20 +311,17 @@ async def assign_plan(user_id: uuid.UUID, plan_id: uuid.UUID, db: AsyncSession =
         existing_slot = existing_slot_result.first()
         shared_password = existing_slot.password if existing_slot else str(uuid.uuid4())
 
-        max_port_result = await db.execute(
-            select(func.max(UserServer.port)).where(UserServer.server_id == server.id)
-        )
-        max_port = max_port_result.scalar() or (server.port_range_start - 1)
-
-        if existing_slot and existing_slot.port not in set(
-            (await db.execute(select(UserServer.port).where(UserServer.server_id == server.id))).scalars().all()
-        ):
-            free_port = existing_slot.port
-        else:
-            free_port = max_port + 1
-
-        if free_port > server.port_range_end:
-            continue  # Skip if no free ports on this server
+        try:
+            free_port = await next_shadowsocks_port(
+                db,
+                server,
+                existing_slot.port if existing_slot else None,
+                lock=True,
+            )
+        except ValueError:
+            continue
+        if free_port is None:
+            continue
 
         vless_uuid = str(uuid.uuid4())
         slot = UserServer(

@@ -5,6 +5,10 @@ import api from "@/lib/api";
 
 const inputClass = "w-full px-4 py-2.5 rounded-xl bg-white/5 text-white border border-white/10 focus:outline-none focus:border-blue-500/60 transition placeholder-gray-600 text-sm";
 const apiBase = "https://saymy-vpn.com";
+const ssPortMin = 20000;
+const ssPortMax = 29999;
+const vlessPortMin = 30000;
+const vlessPortMax = 39999;
 const shortCode = (value?: string | null) => value?.split("-", 1)[0]?.slice(0, 8) ?? "";
 const shortSecret = (value?: string | null) => value?.slice(0, 8) ?? "";
 
@@ -13,8 +17,8 @@ function EditModal({ server, onClose }: { server: any; onClose: () => void }) {
   const [form, setForm] = useState({
     name: server.name ?? "",
     host: server.host ?? "",
-    port_range_start: server.port_range_start ?? 20000,
-    port_range_end: server.port_range_end ?? 29999,
+    port_range_start: server.port_range_start ?? ssPortMin,
+    port_range_end: server.port_range_end ?? ssPortMax,
     method: server.method ?? "chacha20-ietf-poly1305",
     adguard_password: server.adguard_password ?? "",
     xui_url: server.xui_url ?? "",
@@ -62,9 +66,9 @@ function EditModal({ server, onClose }: { server: any; onClose: () => void }) {
               onChange={(e) => setForm({ ...form, name: e.target.value })} />
             <input className={inputClass} placeholder="Host (subdomain or IP)" value={form.host}
               onChange={(e) => setForm({ ...form, host: e.target.value })} />
-            <input className={inputClass} placeholder="Port range start" type="number" value={form.port_range_start}
+            <input className={inputClass} placeholder="SS range start (20000)" type="number" min={ssPortMin} max={ssPortMax} value={form.port_range_start}
               onChange={(e) => setForm({ ...form, port_range_start: Number(e.target.value) })} />
-            <input className={inputClass} placeholder="Port range end" type="number" value={form.port_range_end}
+            <input className={inputClass} placeholder="SS range end (29999)" type="number" min={ssPortMin} max={ssPortMax} value={form.port_range_end}
               onChange={(e) => setForm({ ...form, port_range_end: Number(e.target.value) })} />
             <input className={inputClass} placeholder="SS Method" value={form.method}
               onChange={(e) => setForm({ ...form, method: e.target.value })} />
@@ -92,7 +96,7 @@ function EditModal({ server, onClose }: { server: any; onClose: () => void }) {
               onChange={(e) => setForm({ ...form, xui_inbound_id: e.target.value })} />
             <input className={inputClass} placeholder="VLESS Host override (optional)" value={form.vless_host}
               onChange={(e) => setForm({ ...form, vless_host: e.target.value })} />
-            <input className={inputClass} placeholder="VLESS Port (e.g. 55710)" type="number" value={form.vless_port}
+            <input className={inputClass} placeholder="VLESS Port (30000-39999)" type="number" min={vlessPortMin} max={vlessPortMax} value={form.vless_port}
               onChange={(e) => setForm({ ...form, vless_port: e.target.value })} />
             <input className={inputClass} placeholder="VLESS Public Key" value={form.vless_public_key}
               onChange={(e) => setForm({ ...form, vless_public_key: e.target.value })} />
@@ -205,7 +209,7 @@ export default function Servers() {
   const [creating, setCreating] = useState(false);
   const [editingServer, setEditingServer] = useState<any>(null);
   const [profileServer, setProfileServer] = useState<any>(null);
-  const [form, setForm] = useState({ name: "", host: "", api_port: 8080, port_range_start: 20000, port_range_end: 29999 });
+  const [form, setForm] = useState({ name: "", host: "", api_port: 8080, port_range_start: ssPortMin, port_range_end: ssPortMax });
 
   const { data: servers = [] } = useQuery({
     queryKey: ["servers"],
@@ -260,9 +264,9 @@ export default function Servers() {
               onChange={(e) => setForm({ ...form, name: e.target.value })} />
             <input className={inputClass} placeholder="Host (e.g. hk.saymy-vpn.com)" value={form.host}
               onChange={(e) => setForm({ ...form, host: e.target.value })} />
-            <input className={inputClass} placeholder="Port range start" type="number" value={form.port_range_start}
+            <input className={inputClass} placeholder="SS range start (20000)" type="number" min={ssPortMin} max={ssPortMax} value={form.port_range_start}
               onChange={(e) => setForm({ ...form, port_range_start: Number(e.target.value) })} />
-            <input className={inputClass} placeholder="Port range end" type="number" value={form.port_range_end}
+            <input className={inputClass} placeholder="SS range end (29999)" type="number" min={ssPortMin} max={ssPortMax} value={form.port_range_end}
               onChange={(e) => setForm({ ...form, port_range_end: Number(e.target.value) })} />
           </div>
           <div className="flex gap-2">
@@ -311,7 +315,7 @@ export default function Servers() {
                       <span className="px-1.5 py-0.5 rounded text-xs font-semibold bg-blue-500/15 text-blue-400">
                         Shadowsocks
                       </span>
-                      <span>Ports {s.port_range_start}–{s.port_range_end}</span>
+                      <span>SS {s.port_range_start}–{s.port_range_end}</span>
                       {s.vless_port && (
                         <>
                           <span>·</span>

@@ -40,6 +40,9 @@ XRAY_CERT_DIR="/usr/local/etc/xray/certs"
 AGH_VERSION="0.107.74"
 AGH_DIR="/var/lib/adguardhome"
 AGH_BIN="/usr/local/bin/AdGuardHome"
+SS_PORT_RANGE="20000:29999"
+VLESS_PORT_RANGE="30000:39999"
+VPN_PORT_RANGE="20000:39999"
 
 echo ""
 echo -e "${CYAN}================================================${NC}"
@@ -288,9 +291,9 @@ ufw allow 443/tcp         > /dev/null 2>&1 || true
 ufw allow 53/tcp          > /dev/null 2>&1 || true
 ufw allow 53/udp          > /dev/null 2>&1 || true
 ufw allow 3000/tcp        > /dev/null 2>&1 || true
-ufw allow 20000:39999/tcp > /dev/null 2>&1 || true
-ufw allow 20000:39999/udp > /dev/null 2>&1 || true
-ufw allow 55710/tcp       > /dev/null 2>&1 || true
+ufw allow ${SS_PORT_RANGE}/tcp    > /dev/null 2>&1 || true
+ufw allow ${SS_PORT_RANGE}/udp    > /dev/null 2>&1 || true
+ufw allow ${VLESS_PORT_RANGE}/tcp > /dev/null 2>&1 || true
 echo "y" | ufw enable     > /dev/null 2>&1 || true
 
 # Remove stale duplicate rate-limit rules from previous installs
@@ -299,9 +302,9 @@ for n in $(iptables -L INPUT --line-numbers -n 2>/dev/null | awk '/vpn_ratelimit
 done
 
 # Rate-limit new TCP connections to VPN ports: max 15 new per IP per minute
-iptables -A INPUT -p tcp --dport 20000:39999 -m state --state NEW \
+iptables -A INPUT -p tcp --dport "$VPN_PORT_RANGE" -m state --state NEW \
     -m recent --name vpn_ratelimit --set 2>/dev/null || true
-iptables -A INPUT -p tcp --dport 20000:39999 -m state --state NEW \
+iptables -A INPUT -p tcp --dport "$VPN_PORT_RANGE" -m state --state NEW \
     -m recent --name vpn_ratelimit --update --seconds 60 --hitcount 15 -j DROP 2>/dev/null || true
 # UFW already persists rules across reboots natively
 
@@ -359,6 +362,7 @@ AGENT_SECRET="REPLACE_WITH_AGENT_SECRET"
 SS_CONFIG="/etc/shadowsocks/config.json"
 XRAY_CONFIG="/usr/local/etc/xray/config.json"
 XRAY_CERT_DIR="/usr/local/etc/xray/certs"
+XRAY_STATS_PORT="10086"
 PORT_MAP="/tmp/vpn_port_map.json"
 CYCLE_SECONDS=30
 
@@ -456,6 +460,11 @@ sync_vless() {
 
     vless_sni=$(echo "$config" | jq -r '[.[] | select(.vless_uuid and .vless_port and .vless_sni and (.vless_transport == "grpc"))][0].vless_sni // empty')
     public_port=$(echo "$config" | jq -r '[.[] | select(.vless_uuid and .vless_port and .vless_sni and (.vless_transport == "grpc"))][0].vless_port // empty')
+    if ! [[ "$public_port" =~ ^[0-9]+$ ]] || (( public_port < 30000 || public_port > 39999 )); then
+        systemctl stop xray 2>/dev/null || true
+        echo "[vless] Invalid VLESS port ${public_port}; use 30000-39999"
+        return 1
+    fi
 
     listen_addr="0.0.0.0"
     listen_port="$public_port"
@@ -470,7 +479,7 @@ sync_vless() {
         ensure_xray_cert "$vless_sni" || { echo "[vless] TLS cert failed for ${vless_sni}"; return 1; }
     fi
 
-    echo "$config" | XRAY_CERT_DIR="$XRAY_CERT_DIR" XRAY_LISTEN_ADDR="$listen_addr" XRAY_LISTEN_PORT="$listen_port" XRAY_TLS_MODE="$tls_mode" python3 -c '
+    echo "$config" | XRAY_CERT_DIR="$XRAY_CERT_DIR" XRAY_LISTEN_ADDR="$listen_addr" XRAY_LISTEN_PORT="$listen_port" XRAY_TLS_MODE="$tls_mode" XRAY_STATS_PORT="$XRAY_STATS_PORT" python3 -c '
 import json, os, sys
 
 entries = [
@@ -482,6 +491,7 @@ cert_dir = os.environ["XRAY_CERT_DIR"]
 listen_addr = os.environ["XRAY_LISTEN_ADDR"]
 listen_port = int(os.environ["XRAY_LISTEN_PORT"])
 tls_mode = os.environ["XRAY_TLS_MODE"]
+stats_port = int(os.environ["XRAY_STATS_PORT"])
 clients = []
 seen = set()
 for e in entries:
@@ -491,7 +501,7 @@ for e in entries:
     seen.add(uid)
     clients.append({
         "id": uid,
-        "email": e.get("username") or e.get("user_server_id") or uid,
+        "email": e.get("user_server_id") or uid,
     })
 
 stream_settings = {
@@ -517,6 +527,19 @@ if tls_mode == "direct":
 
 cfg = {
     "log": {"loglevel": "warning"},
+    "policy": {
+        "levels": {
+            "0": {
+                "statsUserUplink": True,
+                "statsUserDownlink": True,
+            }
+        }
+    },
+    "stats": {},
+    "api": {
+        "tag": "api",
+        "services": ["StatsService"],
+    },
     "inbounds": [
         {
             "tag": "vless-grpc-tls",
@@ -532,12 +555,30 @@ cfg = {
                 "enabled": True,
                 "destOverride": ["http", "tls", "quic"],
             },
+        },
+        {
+            "tag": "api",
+            "listen": "127.0.0.1",
+            "port": stats_port,
+            "protocol": "dokodemo-door",
+            "settings": {
+                "address": "127.0.0.1",
+            },
         }
     ],
     "outbounds": [
         {"protocol": "freedom", "tag": "direct"},
         {"protocol": "blackhole", "tag": "block"},
     ],
+    "routing": {
+        "rules": [
+            {
+                "type": "field",
+                "inboundTag": ["api"],
+                "outboundTag": "api",
+            }
+        ]
+    },
 }
 print(json.dumps(cfg, indent=2))
 ' > "$XRAY_CONFIG" || return 1
@@ -585,6 +626,7 @@ print(json.dumps({str(e['port']): str(e['user_server_id']) for e in entries}))
 
     # Flush accumulated traffic before resetting iptables chains
     report_traffic
+    report_vless_traffic
     user_count=$(echo "$config" | python3 -c "import sys,json; print(len(json.load(sys.stdin)))" 2>/dev/null || echo 0)
     if [[ "$user_count" -gt 0 ]]; then
         systemctl restart shadowsocks
@@ -678,6 +720,55 @@ print(json.dumps(entries))
     fi
 }
 
+# ── Report VLESS traffic via Xray per-user stats ─
+report_vless_traffic() {
+    [[ ! -s "$XRAY_CONFIG" ]] && return
+    systemctl is-active --quiet xray || return
+    command -v xray >/dev/null 2>&1 || return
+
+    local raw payload
+    raw=$(xray api statsquery --server "127.0.0.1:${XRAY_STATS_PORT}" -pattern "user>>>" 2>/dev/null || true)
+    [[ -z "$raw" ]] && return
+
+    payload=$(printf '%s\n' "$raw" | python3 -c "
+import json, re, sys
+
+data = sys.stdin.read()
+totals = {}
+for name, value in re.findall(r'name:\\s*\"([^\"]+)\".*?value:\\s*(\\d+)', data, re.S):
+    match = re.match(r'user>>>([^>]+)>>>traffic>>>(uplink|downlink)$', name)
+    if not match:
+        continue
+    user_server_id, direction = match.groups()
+    slot = totals.setdefault(user_server_id, {'upload_bytes': 0, 'download_bytes': 0})
+    if direction == 'uplink':
+        slot['upload_bytes'] += int(value)
+    else:
+        slot['download_bytes'] += int(value)
+
+entries = []
+for user_server_id, values in totals.items():
+    if values['upload_bytes'] <= 0 and values['download_bytes'] <= 0:
+        continue
+    entries.append({
+        'user_server_id': user_server_id,
+        'upload_bytes': values['upload_bytes'],
+        'download_bytes': values['download_bytes'],
+        'interval_sec': $CYCLE_SECONDS,
+    })
+print(json.dumps(entries))
+")
+
+    if [[ -n "$payload" && "$payload" != "[]" ]]; then
+        if api_post "/traffic/${SERVER_ID}" "$payload" > /dev/null; then
+            xray api statsquery --server "127.0.0.1:${XRAY_STATS_PORT}" -pattern "user>>>" -reset >/dev/null 2>&1 || true
+            echo "[vless-traffic] Reported: $payload"
+        else
+            echo "[vless-traffic] Failed to report — preserving Xray counters"
+        fi
+    fi
+}
+
 # ── Main loop ─────────────────────────────────────
 echo "[agent] Starting VPN agent for server ${SERVER_ID}"
 FIRST_RUN=true
@@ -732,6 +823,7 @@ while true; do
 
     # ── Report traffic ─────────────────────────────
     report_traffic
+    report_vless_traffic
 
     sleep "$CYCLE_SECONDS"
 done
