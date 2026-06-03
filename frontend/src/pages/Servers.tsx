@@ -4,6 +4,9 @@ import { Plus, Trash2, Wifi, WifiOff, Activity, Copy, Shield, ShieldOff, Externa
 import api from "@/lib/api";
 
 const inputClass = "w-full px-4 py-2.5 rounded-xl bg-white/5 text-white border border-white/10 focus:outline-none focus:border-blue-500/60 transition placeholder-gray-600 text-sm";
+const apiBase = "https://saymy-vpn.com";
+const shortCode = (value?: string | null) => value?.split("-", 1)[0]?.slice(0, 8) ?? "";
+const shortSecret = (value?: string | null) => value?.slice(0, 8) ?? "";
 
 function EditModal({ server, onClose }: { server: any; onClose: () => void }) {
   const qc = useQueryClient();
@@ -131,6 +134,10 @@ function CopyRow({ label, value }: { label: string; value: string | null | undef
 }
 
 function ProfileModal({ server, onClose }: { server: any; onClose: () => void }) {
+  const serverCode = server.server_code || shortCode(server.id);
+  const agentSecret = server.agent_secret_short || shortSecret(server.agent_secret);
+  const setupCommand = `sudo bash server-setup.sh ${serverCode} ${agentSecret} ${apiBase}`;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <div className="glass rounded-2xl p-6 w-full max-w-lg space-y-5">
@@ -145,9 +152,10 @@ function ProfileModal({ server, onClose }: { server: any; onClose: () => void })
         <div>
           <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2">Agent</p>
           <div className="bg-white/3 rounded-xl px-4 py-1">
-            <CopyRow label="Server ID" value={server.id} />
-            <CopyRow label="Agent Secret" value={server.agent_secret} />
-            <CopyRow label="API Base" value="https://saymy-vpn.com" />
+            <CopyRow label="Server Code" value={serverCode} />
+            <CopyRow label="Agent Secret" value={agentSecret} />
+            <CopyRow label="API Base" value={apiBase} />
+            <CopyRow label="Setup Command" value={setupCommand} />
           </div>
         </div>
 
@@ -279,6 +287,9 @@ export default function Servers() {
         )}
         {servers.map((s: any) => {
           const online = isOnline(s.last_seen_at);
+          const serverCode = s.server_code || shortCode(s.id);
+          const agentSecret = s.agent_secret_short || shortSecret(s.agent_secret);
+          const setupCommand = `sudo bash server-setup.sh ${serverCode} ${agentSecret} ${apiBase}`;
           return (
             <div key={s.id} className="glass rounded-2xl p-5">
               <div className="flex items-center justify-between">
@@ -305,7 +316,7 @@ export default function Servers() {
                         <>
                           <span>·</span>
                           <span className="px-1.5 py-0.5 rounded text-xs font-semibold bg-purple-500/15 text-purple-400">
-                            VLESS+Reality
+                            {s.vless_public_key ? "VLESS+Reality" : "VLESS gRPC"}
                           </span>
                           <span>:{s.vless_port}</span>
                         </>
@@ -358,10 +369,10 @@ export default function Servers() {
               {/* IDs for agent install */}
               <div className="mt-4 pt-4 border-t border-white/5 grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <p className="text-gray-600 text-xs mb-1">Server ID</p>
+                  <p className="text-gray-600 text-xs mb-1">Server Code</p>
                   <div className="flex items-center gap-2">
-                    <p className="text-gray-500 font-mono text-xs break-all">{s.id}</p>
-                    <button onClick={() => navigator.clipboard.writeText(s.id)}
+                    <p className="text-gray-500 font-mono text-xs break-all">{serverCode}</p>
+                    <button onClick={() => navigator.clipboard.writeText(serverCode)}
                       className="shrink-0 p-1 rounded hover:bg-white/10 text-gray-600 hover:text-gray-300 transition">
                       <Copy className="w-3 h-3" />
                     </button>
@@ -370,8 +381,18 @@ export default function Servers() {
                 <div>
                   <p className="text-gray-600 text-xs mb-1">Agent Secret</p>
                   <div className="flex items-center gap-2">
-                    <p className="text-gray-500 font-mono text-xs break-all">{s.agent_secret}</p>
-                    <button onClick={() => navigator.clipboard.writeText(s.agent_secret)}
+                    <p className="text-gray-500 font-mono text-xs break-all">{agentSecret}</p>
+                    <button onClick={() => navigator.clipboard.writeText(agentSecret)}
+                      className="shrink-0 p-1 rounded hover:bg-white/10 text-gray-600 hover:text-gray-300 transition">
+                      <Copy className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+                <div className="sm:col-span-2">
+                  <p className="text-gray-600 text-xs mb-1">Setup Command</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-gray-500 font-mono text-xs break-all">{setupCommand}</p>
+                    <button onClick={() => navigator.clipboard.writeText(setupCommand)}
                       className="shrink-0 p-1 rounded hover:bg-white/10 text-gray-600 hover:text-gray-300 transition">
                       <Copy className="w-3 h-3" />
                     </button>

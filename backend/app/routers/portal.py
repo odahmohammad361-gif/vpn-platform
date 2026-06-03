@@ -5,8 +5,8 @@ from app.database import get_db
 from app.models.user import User
 from app.limiter import limiter
 from pydantic import BaseModel
-import uuid
 import bcrypt as _bcrypt
+from app.utils.short_codes import resolve_user_token, short_uuid
 
 router = APIRouter(prefix="/portal", tags=["portal"])
 
@@ -40,7 +40,7 @@ async def portal_login(request: Request, body: PortalLoginRequest, db: AsyncSess
     if not user.is_active:
         raise HTTPException(403, f"Account disabled: {user.disabled_reason or 'contact support'}")
     return {
-        "subscription_token": str(user.subscription_token),
+        "subscription_token": short_uuid(user.subscription_token),
         "username": user.username,
     }
 
@@ -49,18 +49,7 @@ async def get_portal_user(
     x_sub_token: str = Header(...),
     db: AsyncSession = Depends(get_db),
 ) -> User:
-    try:
-        token = uuid.UUID(x_sub_token)
-    except ValueError:
-        raise HTTPException(401, "Invalid token format")
-
-    result = await db.execute(
-        select(User).where(
-            User.subscription_token == token,
-            User.deleted_at.is_(None),
-        )
-    )
-    user = result.scalar_one_or_none()
+    user = await resolve_user_token(db, x_sub_token)
     if not user:
         raise HTTPException(401, "Invalid token")
     return user
@@ -74,5 +63,5 @@ async def portal_me(user: User = Depends(get_portal_user)):
         "bytes_used": user.bytes_used,
         "quota_bytes": user.quota_bytes,
         "expires_at": user.expires_at.isoformat() if user.expires_at else None,
-        "subscription_token": str(user.subscription_token),
+        "subscription_token": short_uuid(user.subscription_token),
     }

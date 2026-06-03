@@ -15,6 +15,7 @@ from app.models.traffic import DailyTraffic, TrafficLog
 from app.models.plan import Plan
 from app.config import settings
 from app.services.xui import add_vless_client, delete_vless_client, set_vless_client_enabled
+from app.utils.short_codes import short_uuid
 
 
 def _add_months(dt: datetime, months: int) -> datetime:
@@ -274,7 +275,7 @@ async def get_subscription_urls(user_id: uuid.UUID, db: AsyncSession = Depends(g
     if not user:
         raise HTTPException(404, "User not found")
     base = settings.SUBSCRIPTION_BASE_URL
-    token = user.subscription_token
+    token = short_uuid(user.subscription_token)
     return {
         "shadowrocket": f"{base}/sub/{token}",
         "clash": f"{base}/sub/{token}?format=clash",

@@ -9,8 +9,17 @@ from app.database import get_db
 from app.dependencies import get_current_admin
 from app.models.server import Server
 from app.models.traffic import DailyTraffic
+from app.utils.short_codes import short_secret, short_uuid
 
 router = APIRouter(prefix="/servers", tags=["servers"], dependencies=[Depends(get_current_admin)])
+
+
+def _server_payload(server: Server) -> dict:
+    return {
+        **{c.key: getattr(server, c.key) for c in server.__table__.columns},
+        "server_code": short_uuid(server.id),
+        "agent_secret_short": short_secret(server.agent_secret),
+    }
 
 
 class ServerCreate(BaseModel):
@@ -57,7 +66,7 @@ class ServerUpdate(BaseModel):
 @router.get("")
 async def list_servers(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Server))
-    return result.scalars().all()
+    return [_server_payload(server) for server in result.scalars().all()]
 
 
 @router.post("", status_code=201)
@@ -66,7 +75,7 @@ async def create_server(body: ServerCreate, db: AsyncSession = Depends(get_db)):
     db.add(server)
     await db.commit()
     await db.refresh(server)
-    return server
+    return _server_payload(server)
 
 
 @router.get("/{server_id}")
@@ -74,7 +83,7 @@ async def get_server(server_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     server = await db.get(Server, server_id)
     if not server:
         raise HTTPException(404, "Server not found")
-    return server
+    return _server_payload(server)
 
 
 @router.patch("/{server_id}")
@@ -86,7 +95,7 @@ async def update_server(server_id: uuid.UUID, body: ServerUpdate, db: AsyncSessi
         setattr(server, k, v)
     await db.commit()
     await db.refresh(server)
-    return server
+    return _server_payload(server)
 
 
 @router.delete("/{server_id}", status_code=204)

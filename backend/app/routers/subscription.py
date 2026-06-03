@@ -1,4 +1,3 @@
-import uuid
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import PlainTextResponse, Response
@@ -10,6 +9,7 @@ from app.models.user import User, UserServer
 from app.models.server import Server
 from app.services.subscription import build_shadowrocket, build_clash, build_v2rayng, build_singbox, build_surge_conf
 from app.utils.base64_utils import build_vless_uri, build_vless_grpc_uri
+from app.utils.short_codes import resolve_user_token
 from app.config import settings
 
 router = APIRouter(prefix="/sub", tags=["subscription"])
@@ -131,13 +131,12 @@ def _vless_node(us: UserServer, server: Server) -> tuple[dict, str] | None:
 
 @router.get("/{token}")
 async def get_subscription(
-    token: uuid.UUID,
+    token: str,
     request: Request,
     format: str = "shadowrocket",
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(select(User).where(User.subscription_token == token))
-    user = result.scalar_one_or_none()
+    user = await resolve_user_token(db, token)
 
     if not user:
         raise HTTPException(403, "Subscription not available")

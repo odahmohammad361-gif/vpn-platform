@@ -11,36 +11,47 @@ from app.models.server import Server
 from app.models.user import User, UserServer
 from app.models.traffic import TrafficLog
 from app.utils.crypto import verify_agent_signature
+from app.utils.short_codes import resolve_server_ref, short_secret
 
 router = APIRouter(prefix="/agent", tags=["agent"])
 
 
 async def authenticate_agent(
     request: Request,
-    server_id: uuid.UUID,
+    server_id: str,
     x_agent_timestamp: str = Header(...),
     x_agent_signature: str = Header(...),
     db: AsyncSession = Depends(get_db),
 ):
-    server = await db.get(Server, server_id)
+    server = await resolve_server_ref(db, server_id)
     if not server:
         raise HTTPException(404, "Server not found")
     body = (await request.body()).decode()
-    if not verify_agent_signature(str(server_id), server.agent_secret, x_agent_timestamp, body, x_agent_signature):
+    secret8 = short_secret(server.agent_secret)
+    valid = any(
+        verify_agent_signature(sid, secret, x_agent_timestamp, body, x_agent_signature)
+        for sid, secret in (
+            (server_id, server.agent_secret),
+            (server_id, secret8),
+            (str(server.id), server.agent_secret),
+            (str(server.id), secret8),
+        )
+    )
+    if not valid:
         raise HTTPException(401, "Invalid agent signature")
     return server
 
 
 @router.get("/config/{server_id}")
 async def get_config(
-    server_id: uuid.UUID,
+    server_id: str,
     db: AsyncSession = Depends(get_db),
     server: Server = Depends(authenticate_agent),
 ):
     result = await db.execute(
         select(UserServer, User)
         .join(User, UserServer.user_id == User.id)
-        .where(UserServer.server_id == server_id)
+        .where(UserServer.server_id == server.id)
         .where(User.is_active == True)
     )
     rows = result.all()
@@ -84,7 +95,7 @@ class TrafficEntry(BaseModel):
 
 @router.post("/traffic/{server_id}")
 async def report_traffic(
-    server_id: uuid.UUID,
+    server_id: str,
     entries: list[TrafficEntry],
     db: AsyncSession = Depends(get_db),
     server: Server = Depends(authenticate_agent),
@@ -115,7 +126,7 @@ async def report_traffic(
 
 @router.post("/heartbeat/{server_id}")
 async def heartbeat(
-    server_id: uuid.UUID,
+    server_id: str,
     db: AsyncSession = Depends(get_db),
     server: Server = Depends(authenticate_agent),
 ):
@@ -125,7 +136,7 @@ async def heartbeat(
     # Check if there are unsynced slots
     result = await db.execute(
         select(UserServer).where(
-            UserServer.server_id == server_id,
+            UserServer.server_id == server.id,
             UserServer.is_synced == False
         ).limit(1)
     )
@@ -135,13 +146,13 @@ async def heartbeat(
 
 @router.post("/sync-ack/{server_id}")
 async def sync_ack(
-    server_id: uuid.UUID,
+    server_id: str,
     db: AsyncSession = Depends(get_db),
     server: Server = Depends(authenticate_agent),
 ):
     await db.execute(
         update(UserServer)
-        .where(UserServer.server_id == server_id)
+        .where(UserServer.server_id == server.id)
         .values(is_synced=True)
     )
     server.force_sync = False
