@@ -215,6 +215,7 @@ function SubModal({ user, onClose }: { user: any; onClose: () => void }) {
     { key: "shadowrocket", label: "Shadowrocket" },
     { key: "clash", label: "Clash" },
     { key: "v2rayng", label: "v2rayNG" },
+    { key: "singbox", label: "Sing-box" },
     { key: "surge", label: "Shadowrocket + AdGuard DNS", note: "Sets DNS to VPN server — routes through AdGuard Home" },
   ];
 

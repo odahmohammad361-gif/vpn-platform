@@ -1,7 +1,7 @@
 #!/bin/bash
 # ================================================
 #  VPN Server Full Setup
-#  Installs shadowsocks-rust + AdGuard Home + agent
+#  Installs shadowsocks-rust + Xray VLESS + AdGuard Home + agent
 #  Usage: sudo bash server-setup.sh <SERVER_ID> <AGENT_SECRET> <API_BASE>
 #  Example: sudo bash server-setup.sh abc-uuid secret123 https://saymy-vpn.com
 # ================================================
@@ -35,6 +35,8 @@ SS_VERSION="1.24.0"
 SS_DIR="/etc/shadowsocks"
 SS_BIN="/usr/local/bin/ssserver"
 SS_LOG="/var/log/shadowsocks.log"
+XRAY_CONFIG="/usr/local/etc/xray/config.json"
+XRAY_CERT_DIR="/usr/local/etc/xray/certs"
 AGH_VERSION="0.107.74"
 AGH_DIR="/var/lib/adguardhome"
 AGH_BIN="/usr/local/bin/AdGuardHome"
@@ -46,9 +48,9 @@ echo -e "${CYAN}================================================${NC}"
 echo ""
 
 # ── STEP 1 — System packages ─────────────────────
-echo -e "${YELLOW}[1/9] Installing system packages...${NC}"
+echo -e "${YELLOW}[1/10] Installing system packages...${NC}"
 apt-get update -qq
-apt-get install -y -qq curl wget tar xz-utils ufw openssl python3 jq
+apt-get install -y -qq curl wget tar xz-utils ufw openssl python3 jq ca-certificates certbot
 # fail2ban requires python3-systemd on Ubuntu 22.04+ to register its systemd unit
 apt-get install -y -qq python3-systemd fail2ban 2>/dev/null || apt-get install -y -qq fail2ban 2>/dev/null || true
 # optional — ignore if unavailable
@@ -62,7 +64,7 @@ root soft nofile 51200
 root hard nofile 51200" >> /etc/security/limits.conf
 
 # ── STEP 2 — Download shadowsocks-rust ───────────
-echo -e "${YELLOW}[2/9] Downloading shadowsocks-rust v${SS_VERSION}...${NC}"
+echo -e "${YELLOW}[2/10] Downloading shadowsocks-rust v${SS_VERSION}...${NC}"
 
 ARCH=$(uname -m)
 case "$ARCH" in
@@ -83,8 +85,30 @@ chmod +x "$SS_BIN"
 rm -f /tmp/ss.tar.xz /tmp/ssserver /tmp/sslocal /tmp/ssurl /tmp/ssmanager 2>/dev/null || true
 echo -e "${GREEN}      Installed: $SS_BIN${NC}"
 
-# ── STEP 3 — shadowsocks initial config ──────────
-echo -e "${YELLOW}[3/9] Writing shadowsocks config...${NC}"
+# ── STEP 3 — Download Xray ───────────────────────
+echo -e "${YELLOW}[3/10] Installing Xray for VLESS gRPC...${NC}"
+
+if ! command -v xray >/dev/null 2>&1; then
+    bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install
+fi
+mkdir -p "$(dirname "$XRAY_CONFIG")" "$XRAY_CERT_DIR"
+cat > "$XRAY_CONFIG" << 'EOF'
+{
+  "log": { "loglevel": "warning" },
+  "inbounds": [],
+  "outbounds": [
+    { "protocol": "freedom", "tag": "direct" },
+    { "protocol": "blackhole", "tag": "block" }
+  ]
+}
+EOF
+systemctl daemon-reload
+systemctl enable xray > /dev/null 2>&1 || true
+systemctl stop xray 2>/dev/null || true
+echo -e "${GREEN}      Xray ready (agent starts it after VLESS sync)${NC}"
+
+# ── STEP 4 — shadowsocks initial config ──────────
+echo -e "${YELLOW}[4/10] Writing shadowsocks config...${NC}"
 
 mkdir -p "$SS_DIR"
 cat > "$SS_DIR/config.json" << 'EOF'
@@ -94,8 +118,8 @@ cat > "$SS_DIR/config.json" << 'EOF'
 EOF
 echo -e "${GREEN}      Done${NC}"
 
-# ── STEP 4 — BBR + kernel tuning ─────────────────
-echo -e "${YELLOW}[4/9] Enabling BBR + enhanced kernel tuning...${NC}"
+# ── STEP 5 — BBR + kernel tuning ─────────────────
+echo -e "${YELLOW}[5/10] Enabling BBR + enhanced kernel tuning...${NC}"
 
 sed -i '/net.core.default_qdisc/d
 /net.ipv4.tcp_congestion_control/d
@@ -104,6 +128,7 @@ sed -i '/net.core.default_qdisc/d
 /net.ipv4.tcp_rmem/d
 /net.ipv4.tcp_wmem/d
 /net.ipv4.tcp_mtu_probing/d
+/net.ipv4.tcp_ecn/d
 /net.ipv4.tcp_fastopen/d
 /net.core.netdev_max_backlog/d
 /net.core.somaxconn/d
@@ -146,8 +171,8 @@ EOF
 sysctl -p > /dev/null 2>&1
 echo -e "${GREEN}      BBR: $(sysctl -n net.ipv4.tcp_congestion_control)${NC}"
 
-# ── STEP 5 — AdGuard Home ────────────────────────
-echo -e "${YELLOW}[5/9] Installing AdGuard Home v${AGH_VERSION}...${NC}"
+# ── STEP 6 — AdGuard Home ────────────────────────
+echo -e "${YELLOW}[6/10] Installing AdGuard Home v${AGH_VERSION}...${NC}"
 
 case "$ARCH" in
     x86_64)  AGH_ARCH="amd64" ;;
@@ -254,8 +279,8 @@ echo -e "${GREEN}      AdGuard Home ready (controlled by admin toggle)${NC}"
 echo -e "${GREEN}      Admin URL : http://127.0.0.1:3000  (SSH forward to access)${NC}"
 echo -e "${GREEN}      Password  : ${AGH_PASSWORD}${NC}"
 
-# ── STEP 6 — UFW + bot blocking ──────────────────
-echo -e "${YELLOW}[6/9] Configuring firewall + bot blocking...${NC}"
+# ── STEP 7 — UFW + bot blocking ──────────────────
+echo -e "${YELLOW}[7/10] Configuring firewall + bot blocking...${NC}"
 
 ufw allow ssh             > /dev/null 2>&1 || true
 ufw allow 80/tcp          > /dev/null 2>&1 || true
@@ -267,6 +292,11 @@ ufw allow 20000:39999/tcp > /dev/null 2>&1 || true
 ufw allow 20000:39999/udp > /dev/null 2>&1 || true
 ufw allow 55710/tcp       > /dev/null 2>&1 || true
 echo "y" | ufw enable     > /dev/null 2>&1 || true
+
+# Remove stale duplicate rate-limit rules from previous installs
+for n in $(iptables -L INPUT --line-numbers -n 2>/dev/null | awk '/vpn_ratelimit/ {print $1}' | sort -rn); do
+    iptables -D INPUT "$n" 2>/dev/null || true
+done
 
 # Rate-limit new TCP connections to VPN ports: max 15 new per IP per minute
 iptables -A INPUT -p tcp --dport 20000:39999 -m state --state NEW \
@@ -282,8 +312,8 @@ iptables-save > /etc/iptables.rules 2>/dev/null || true
 echo "@reboot root iptables-restore < /etc/iptables.rules" > /etc/cron.d/iptables-restore
 chmod 644 /etc/cron.d/iptables-restore
 
-# ── STEP 7 — shadowsocks systemd ─────────────────
-echo -e "${YELLOW}[7/9] Creating shadowsocks service...${NC}"
+# ── STEP 8 — shadowsocks systemd ─────────────────
+echo -e "${YELLOW}[8/10] Creating shadowsocks service...${NC}"
 
 touch "$SS_LOG"
 
@@ -313,8 +343,8 @@ systemctl enable shadowsocks > /dev/null 2>&1
 SS_STATUS="waiting for agent sync"
 echo -e "${GREEN}      Shadowsocks: $SS_STATUS${NC}"
 
-# ── STEP 8 — Install VPN agent ───────────────────
-echo -e "${YELLOW}[8/9] Installing VPN agent...${NC}"
+# ── STEP 9 — Install VPN agent ───────────────────
+echo -e "${YELLOW}[9/10] Installing VPN agent...${NC}"
 
 cat > /usr/local/bin/vpn-agent.sh << 'AGENT_EOF'
 #!/bin/bash
@@ -327,6 +357,8 @@ API_BASE="REPLACE_WITH_API_BASE/agent"
 SERVER_ID="REPLACE_WITH_SERVER_UUID"
 AGENT_SECRET="REPLACE_WITH_AGENT_SECRET"
 SS_CONFIG="/etc/shadowsocks/config.json"
+XRAY_CONFIG="/usr/local/etc/xray/config.json"
+XRAY_CERT_DIR="/usr/local/etc/xray/certs"
 PORT_MAP="/tmp/vpn_port_map.json"
 CYCLE_SECONDS=30
 
@@ -379,6 +411,126 @@ setup_accounting() {
     done < <(python3 -c "import json,sys; [print(p) for p in json.load(open('$PORT_MAP')).keys()]" 2>/dev/null)
 }
 
+ensure_xray_cert() {
+    local domain="$1"
+    [[ -z "$domain" ]] && { echo "[vless] Missing TLS domain"; return 1; }
+
+    mkdir -p "$XRAY_CERT_DIR"
+    if [[ -s "$XRAY_CERT_DIR/fullchain.pem" && -s "$XRAY_CERT_DIR/privkey.pem" ]] \
+        && openssl x509 -in "$XRAY_CERT_DIR/fullchain.pem" -noout -ext subjectAltName 2>/dev/null | grep -q "DNS:${domain}"; then
+        return 0
+    fi
+
+    if [[ ! -s "/etc/letsencrypt/live/${domain}/fullchain.pem" || ! -s "/etc/letsencrypt/live/${domain}/privkey.pem" ]]; then
+        echo "[vless] Requesting Let's Encrypt cert for ${domain}"
+        systemctl stop xray 2>/dev/null || true
+        certbot certonly --standalone \
+            -d "$domain" \
+            --agree-tos \
+            --register-unsafely-without-email \
+            --non-interactive || return 1
+    fi
+
+    cp "/etc/letsencrypt/live/${domain}/fullchain.pem" "$XRAY_CERT_DIR/fullchain.pem"
+    cp "/etc/letsencrypt/live/${domain}/privkey.pem" "$XRAY_CERT_DIR/privkey.pem"
+
+    local xray_user xray_group
+    xray_user=$(systemctl cat xray 2>/dev/null | awk -F= '/^User=/ {print $2; exit}')
+    xray_user="${xray_user:-nobody}"
+    xray_group=$(id -gn "$xray_user" 2>/dev/null || echo nogroup)
+    chown "$xray_user:$xray_group" "$XRAY_CERT_DIR/fullchain.pem" "$XRAY_CERT_DIR/privkey.pem" 2>/dev/null || true
+    chmod 644 "$XRAY_CERT_DIR/fullchain.pem"
+    chmod 600 "$XRAY_CERT_DIR/privkey.pem"
+}
+
+sync_vless() {
+    local config="$1"
+    local vless_count vless_sni
+
+    vless_count=$(echo "$config" | jq '[.[] | select(.vless_uuid and .vless_port and .vless_sni and (.vless_transport == "grpc"))] | length' 2>/dev/null || echo 0)
+    if [[ "$vless_count" -eq 0 ]]; then
+        systemctl stop xray 2>/dev/null || true
+        echo "[vless] No agent-managed VLESS users; Xray stopped"
+        return 0
+    fi
+
+    vless_sni=$(echo "$config" | jq -r '[.[] | select(.vless_uuid and .vless_port and .vless_sni and (.vless_transport == "grpc"))][0].vless_sni // empty')
+    ensure_xray_cert "$vless_sni" || { echo "[vless] TLS cert failed for ${vless_sni}"; return 1; }
+
+    echo "$config" | XRAY_CERT_DIR="$XRAY_CERT_DIR" python3 -c '
+import json, os, sys
+
+entries = [
+    e for e in json.load(sys.stdin)
+    if e.get("vless_uuid") and e.get("vless_port") and e.get("vless_sni") and e.get("vless_transport") == "grpc"
+]
+first = entries[0]
+cert_dir = os.environ["XRAY_CERT_DIR"]
+clients = []
+seen = set()
+for e in entries:
+    uid = e["vless_uuid"]
+    if uid in seen:
+        continue
+    seen.add(uid)
+    clients.append({
+        "id": uid,
+        "email": e.get("username") or e.get("user_server_id") or uid,
+    })
+
+cfg = {
+    "log": {"loglevel": "warning"},
+    "inbounds": [
+        {
+            "tag": "vless-grpc-tls",
+            "listen": "0.0.0.0",
+            "port": int(first["vless_port"]),
+            "protocol": "vless",
+            "settings": {
+                "clients": clients,
+                "decryption": "none",
+            },
+            "streamSettings": {
+                "network": "grpc",
+                "security": "tls",
+                "tlsSettings": {
+                    "serverName": first["vless_sni"],
+                    "alpn": ["h2"],
+                    "certificates": [
+                        {
+                            "certificateFile": f"{cert_dir}/fullchain.pem",
+                            "keyFile": f"{cert_dir}/privkey.pem",
+                        }
+                    ],
+                },
+                "grpcSettings": {
+                    "serviceName": first.get("vless_grpc_service_name") or "grpc",
+                    "multiMode": False,
+                },
+            },
+            "sniffing": {
+                "enabled": True,
+                "destOverride": ["http", "tls", "quic"],
+            },
+        }
+    ],
+    "outbounds": [
+        {"protocol": "freedom", "tag": "direct"},
+        {"protocol": "blackhole", "tag": "block"},
+    ],
+}
+print(json.dumps(cfg, indent=2))
+' > "$XRAY_CONFIG" || return 1
+
+    if ! xray run -test -config "$XRAY_CONFIG" >/dev/null; then
+        echo "[vless] Xray config test failed"
+        return 1
+    fi
+
+    systemctl restart xray
+    echo "[vless] Xray synced with ${vless_count} client(s) on ${vless_sni}"
+}
+
 # ── Sync users — write config + restart ssserver ──
 sync_users() {
     local config
@@ -421,6 +573,8 @@ print(json.dumps({str(e['port']): str(e['user_server_id']) for e in entries}))
     fi
     setup_accounting
     echo "[sync] Config written with $(echo "$config" | python3 -c "import sys,json; print(len(json.load(sys.stdin)))" 2>/dev/null) user(s)"
+
+    sync_vless "$config" || return 1
 
     api_post "/sync-ack/${SERVER_ID}" "{}"
     echo "[sync] Sync complete"
@@ -542,6 +696,13 @@ while true; do
         echo "[watchdog] Shadowsocks restarted"
     fi
 
+    vless_inbounds=$(python3 -c "import json; d=json.load(open('$XRAY_CONFIG')); print(len(d.get('inbounds', [])))" 2>/dev/null || echo 0)
+    if [[ "$vless_inbounds" -gt 0 ]] && ! systemctl is-active --quiet xray; then
+        echo "[watchdog] Xray is down — restarting"
+        systemctl restart xray
+        echo "[watchdog] Xray restarted"
+    fi
+
     # ── AdGuard Home control ───────────────────────
     if [[ "$adguard_enabled" == "True" ]]; then
         systemctl is-active --quiet adguardhome || { echo "[adguard] Starting AdGuard Home"; systemctl start adguardhome; }
@@ -587,8 +748,8 @@ sleep 2
 AGENT_STATUS=$(systemctl is-active vpn-agent)
 echo -e "${GREEN}      Agent: $AGENT_STATUS${NC}"
 
-# ── STEP 9 — fail2ban ────────────────────────────
-echo -e "${YELLOW}[9/9] Configuring fail2ban...${NC}"
+# ── STEP 10 — fail2ban ───────────────────────────
+echo -e "${YELLOW}[10/10] Configuring fail2ban...${NC}"
 
 mkdir -p /etc/fail2ban/filter.d /etc/fail2ban/jail.d
 
@@ -623,6 +784,7 @@ echo ""
 echo -e "  Server ID    : ${GREEN}$SERVER_ID${NC}"
 echo -e "  API Base     : ${GREEN}$API_BASE${NC}"
 echo -e "  Shadowsocks  : ${GREEN}$SS_STATUS${NC} (will activate once agent syncs users)"
+echo -e "  VLESS gRPC   : ${GREEN}Xray installed${NC} (will activate when server VLESS fields are set)"
 echo -e "  Agent        : ${GREEN}$AGENT_STATUS${NC}"
 echo -e "  fail2ban     : ${GREEN}$F2B_STATUS${NC}"
 echo -e "  AdGuard Home : ${YELLOW}Installed (enable via admin toggle)${NC}"
@@ -632,6 +794,7 @@ echo ""
 echo -e "  Useful commands:"
 echo -e "    journalctl -u vpn-agent -f         # Agent logs"
 echo -e "    journalctl -u shadowsocks -f       # SS logs"
+echo -e "    journalctl -u xray -f              # VLESS/Xray logs"
 echo -e "    journalctl -u adguardhome -f       # AdGuard logs"
 echo -e "    systemctl status vpn-agent"
 echo -e "    # SSH forward for AdGuard UI:"

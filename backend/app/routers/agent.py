@@ -44,15 +44,34 @@ async def get_config(
         .where(User.is_active == True)
     )
     rows = result.all()
-    return [
-        {
+    vless_enabled = bool(server.vless_port and server.vless_sni)
+    vless_is_reality = bool(server.vless_public_key and server.vless_short_id)
+    vless_transport = "tcp" if vless_is_reality else "grpc"
+    vless_security = "reality" if vless_is_reality else "tls"
+    vless_service_name = None if vless_is_reality else (server.vless_short_id or "grpc")
+
+    entries = []
+    for us, user in rows:
+        entry = {
             "user_server_id": str(us.id),
+            "username": user.username,
             "port": us.port,
             "password": us.password,
             "method": server.method,
         }
-        for us, user in rows
-    ]
+        if vless_enabled and us.vless_uuid:
+            entry.update({
+                "vless_uuid": us.vless_uuid,
+                "vless_port": server.vless_port,
+                "vless_host": server.vless_host or server.host,
+                "vless_sni": server.vless_sni,
+                "vless_transport": vless_transport,
+                "vless_security": vless_security,
+                "vless_grpc_service_name": vless_service_name,
+                "vless_packet_encoding": "xudp",
+            })
+        entries.append(entry)
+    return entries
 
 
 class TrafficEntry(BaseModel):

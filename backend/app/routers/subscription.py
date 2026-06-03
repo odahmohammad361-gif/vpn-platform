@@ -9,7 +9,7 @@ from app.database import get_db
 from app.models.user import User, UserServer
 from app.models.server import Server
 from app.services.subscription import build_shadowrocket, build_clash, build_v2rayng, build_singbox, build_surge_conf
-from app.utils.base64_utils import build_vless_uri
+from app.utils.base64_utils import build_vless_uri, build_vless_grpc_uri
 from app.config import settings
 
 router = APIRouter(prefix="/sub", tags=["subscription"])
@@ -73,6 +73,62 @@ def _respond(
     return resp
 
 
+def _vless_node(us: UserServer, server: Server) -> tuple[dict, str] | None:
+    if not us.vless_uuid or not server.vless_port or not server.vless_sni:
+        return None
+
+    host = server.vless_host or server.host
+    name = f"{server.name}-VLESS"
+
+    if server.vless_public_key and server.vless_short_id:
+        node = {
+            "name": name,
+            "host": host,
+            "port": server.vless_port,
+            "uuid": us.vless_uuid,
+            "security": "reality",
+            "transport": "tcp",
+            "flow": "xtls-rprx-vision",
+            "public_key": server.vless_public_key,
+            "short_id": server.vless_short_id,
+            "sni": server.vless_sni,
+            "packet_encoding": "xudp",
+        }
+        uri = build_vless_uri(
+            client_uuid=us.vless_uuid,
+            host=host,
+            port=server.vless_port,
+            public_key=server.vless_public_key,
+            short_id=server.vless_short_id,
+            sni=server.vless_sni,
+            name=name,
+        )
+        return node, uri
+
+    service_name = server.vless_short_id or "grpc"
+    node = {
+        "name": name,
+        "host": host,
+        "port": server.vless_port,
+        "uuid": us.vless_uuid,
+        "security": "tls",
+        "transport": "grpc",
+        "grpc_service_name": service_name,
+        "sni": server.vless_sni,
+        "alpn": "h2",
+        "packet_encoding": "xudp",
+    }
+    uri = build_vless_grpc_uri(
+        client_uuid=us.vless_uuid,
+        host=host,
+        port=server.vless_port,
+        sni=server.vless_sni,
+        service_name=service_name,
+        name=name,
+    )
+    return node, uri
+
+
 @router.get("/{token}")
 async def get_subscription(
     token: uuid.UUID,
@@ -120,26 +176,11 @@ async def get_subscription(
             "password": us.password,
             "method": server.method,
         })
-        if (us.vless_uuid and server.vless_port and server.vless_public_key
-                and server.vless_short_id and server.vless_sni):
-            vless_nodes.append({
-                "name": f"{server.name}-VLESS",
-                "host": server.vless_host or server.host,
-                "port": server.vless_port,
-                "uuid": us.vless_uuid,
-                "public_key": server.vless_public_key,
-                "short_id": server.vless_short_id,
-                "sni": server.vless_sni,
-            })
-            vless_uris.append(build_vless_uri(
-                client_uuid=us.vless_uuid,
-                host=server.vless_host or server.host,
-                port=server.vless_port,
-                public_key=server.vless_public_key,
-                short_id=server.vless_short_id,
-                sni=server.vless_sni,
-                name=f"{server.name}-VLESS",
-            ))
+        node = _vless_node(us, server)
+        if node:
+            vless_node, vless_uri = node
+            vless_nodes.append(vless_node)
+            vless_uris.append(vless_uri)
 
     if not slots:
         raise HTTPException(404, "No active servers assigned")

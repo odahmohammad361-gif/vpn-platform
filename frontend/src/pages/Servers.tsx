@@ -75,9 +75,9 @@ function EditModal({ server, onClose }: { server: any; onClose: () => void }) {
             onChange={(e) => setForm({ ...form, adguard_password: e.target.value })} />
         </div>
 
-        {/* x-ui / VLESS */}
+        {/* VLESS */}
         <div>
-          <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2">VLESS+Reality (x-ui)</p>
+          <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2">VLESS</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <input className={inputClass} placeholder="x-ui URL (e.g. https://sg..:6689/path)" value={form.xui_url}
               onChange={(e) => setForm({ ...form, xui_url: e.target.value })} />
@@ -93,9 +93,9 @@ function EditModal({ server, onClose }: { server: any; onClose: () => void }) {
               onChange={(e) => setForm({ ...form, vless_port: e.target.value })} />
             <input className={inputClass} placeholder="VLESS Public Key" value={form.vless_public_key}
               onChange={(e) => setForm({ ...form, vless_public_key: e.target.value })} />
-            <input className={inputClass} placeholder="VLESS Short ID" value={form.vless_short_id}
+            <input className={inputClass} placeholder="gRPC Service / Reality Short ID" value={form.vless_short_id}
               onChange={(e) => setForm({ ...form, vless_short_id: e.target.value })} />
-            <input className={inputClass} placeholder="VLESS SNI (e.g. www.apple.com)" value={form.vless_sni}
+            <input className={inputClass} placeholder="VLESS SNI (e.g. sg3.saymy-vpn.com)" value={form.vless_sni}
               onChange={(e) => setForm({ ...form, vless_sni: e.target.value })} />
           </div>
         </div>
@@ -163,10 +163,12 @@ function ProfileModal({ server, onClose }: { server: any; onClose: () => void })
           </div>
         )}
 
-        {/* x-ui / VLESS */}
-        {server.xui_url && (
+        {/* VLESS */}
+        {(server.xui_url || server.vless_port) && (
           <div>
-            <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2">x-ui Panel (VLESS+Reality)</p>
+            <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2">
+              {server.vless_public_key ? "VLESS Reality" : "VLESS gRPC TLS"}
+            </p>
             <div className="bg-white/3 rounded-xl px-4 py-1">
               <CopyRow label="Panel URL" value={server.xui_url} />
               <CopyRow label="Username" value={server.xui_username} />
@@ -174,7 +176,7 @@ function ProfileModal({ server, onClose }: { server: any; onClose: () => void })
               <CopyRow label="Inbound ID" value={server.xui_inbound_id?.toString()} />
               <CopyRow label="VLESS Port" value={server.vless_port?.toString()} />
               <CopyRow label="Public Key" value={server.vless_public_key} />
-              <CopyRow label="Short ID" value={server.vless_short_id} />
+              <CopyRow label={server.vless_public_key ? "Short ID" : "gRPC Service"} value={server.vless_short_id || (!server.vless_public_key && server.vless_port ? "grpc" : null)} />
               <CopyRow label="SNI" value={server.vless_sni} />
               {server.vless_host && <CopyRow label="VLESS Host" value={server.vless_host} />}
             </div>

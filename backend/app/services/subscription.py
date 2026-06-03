@@ -79,23 +79,36 @@ _SINGBOX_DIRECT_SUFFIXES = [
 
 
 def _clash_vless_proxy(node: dict) -> dict:
-    return {
+    proxy = {
         "name": node["name"],
         "type": "vless",
         "server": node["host"],
         "port": node["port"],
         "uuid": node["uuid"],
-        "network": "tcp",
         "tls": True,
         "udp": True,
-        "flow": "xtls-rprx-vision",
         "servername": node["sni"],
         "client-fingerprint": "chrome",
-        "reality-opts": {
-            "public-key": node["public_key"],
-            "short-id": node["short_id"],
-        },
+        "packet-encoding": node.get("packet_encoding", "xudp"),
     }
+    if node.get("transport") == "grpc":
+        proxy.update({
+            "network": "grpc",
+            "alpn": ["h2"],
+            "grpc-opts": {
+                "grpc-service-name": node.get("grpc_service_name", "grpc"),
+            },
+        })
+    else:
+        proxy.update({
+            "network": "tcp",
+            "flow": node.get("flow", "xtls-rprx-vision"),
+            "reality-opts": {
+                "public-key": node["public_key"],
+                "short-id": node["short_id"],
+            },
+        })
+    return proxy
 
 
 def _singbox_ss_outbound(slot: dict) -> dict:
@@ -110,14 +123,13 @@ def _singbox_ss_outbound(slot: dict) -> dict:
 
 
 def _singbox_vless_outbound(node: dict) -> dict:
-    return {
+    outbound = {
         "type": "vless",
         "tag": node["name"],
         "server": node["host"],
         "server_port": node["port"],
         "uuid": node["uuid"],
-        "flow": "xtls-rprx-vision",
-        "network": "tcp",
+        "packet_encoding": node.get("packet_encoding", "xudp"),
         "tls": {
             "enabled": True,
             "server_name": node["sni"],
@@ -125,13 +137,23 @@ def _singbox_vless_outbound(node: dict) -> dict:
                 "enabled": True,
                 "fingerprint": "chrome",
             },
-            "reality": {
-                "enabled": True,
-                "public_key": node["public_key"],
-                "short_id": node["short_id"],
-            },
         },
     }
+    if node.get("transport") == "grpc":
+        outbound["transport"] = {
+            "type": "grpc",
+            "service_name": node.get("grpc_service_name", "grpc"),
+        }
+        outbound["tls"]["alpn"] = ["h2"]
+    else:
+        outbound["flow"] = node.get("flow", "xtls-rprx-vision")
+        outbound["network"] = "tcp"
+        outbound["tls"]["reality"] = {
+            "enabled": True,
+            "public_key": node["public_key"],
+            "short_id": node["short_id"],
+        }
+    return outbound
 
 
 def build_shadowrocket(slots: list[dict], vless_uris: list[str] | None = None) -> str:

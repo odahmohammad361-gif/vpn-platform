@@ -279,6 +279,7 @@ async def get_subscription_urls(user_id: uuid.UUID, db: AsyncSession = Depends(g
         "shadowrocket": f"{base}/sub/{token}",
         "clash": f"{base}/sub/{token}?format=clash",
         "v2rayng": f"{base}/sub/{token}?format=v2rayng",
+        "singbox": f"{base}/sub/{token}?format=singbox",
         "surge": f"{base}/sub/{token}?format=surge",
     }
 
