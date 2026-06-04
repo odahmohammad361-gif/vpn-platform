@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import PlainTextResponse, Response
@@ -168,6 +169,7 @@ async def get_subscription(
     slots = []
     vless_uris = []
     vless_nodes = []
+    created_vless_uuid = False
     for us, server in rows:
         slots.append({
             "name": server.name,
@@ -176,11 +178,17 @@ async def get_subscription(
             "password": us.password,
             "method": server.method,
         })
+        if not us.vless_uuid and is_vless_port(server.vless_port) and server.vless_sni:
+            us.vless_uuid = str(uuid.uuid4())
+            created_vless_uuid = True
         node = _vless_node(us, server)
         if node:
             vless_node, vless_uri = node
             vless_nodes.append(vless_node)
             vless_uris.append(vless_uri)
+
+    if created_vless_uuid:
+        await db.commit()
 
     if not slots:
         raise HTTPException(404, "No active servers assigned")

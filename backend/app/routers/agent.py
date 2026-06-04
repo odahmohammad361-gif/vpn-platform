@@ -61,9 +61,13 @@ async def get_config(
     vless_transport = "tcp" if vless_is_reality else "grpc"
     vless_security = "reality" if vless_is_reality else "tls"
     vless_service_name = None if vless_is_reality else (server.vless_short_id or "grpc")
+    created_vless_uuid = False
 
     entries = []
     for us, user in rows:
+        if vless_enabled and not us.vless_uuid:
+            us.vless_uuid = str(uuid.uuid4())
+            created_vless_uuid = True
         entry = {
             "user_server_id": str(us.id),
             "username": user.username,
@@ -83,6 +87,8 @@ async def get_config(
                 "vless_packet_encoding": "xudp",
             })
         entries.append(entry)
+    if created_vless_uuid:
+        await db.commit()
     return entries
 
 

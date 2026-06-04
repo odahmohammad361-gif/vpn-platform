@@ -19,6 +19,18 @@ from app.utils.short_codes import short_secret, short_uuid
 
 router = APIRouter(prefix="/servers", tags=["servers"], dependencies=[Depends(get_current_admin)])
 
+_AGENT_SYNC_FIELDS = {
+    "host",
+    "port_range_start",
+    "port_range_end",
+    "method",
+    "vless_host",
+    "vless_port",
+    "vless_public_key",
+    "vless_short_id",
+    "vless_sni",
+}
+
 
 def _server_payload(server: Server) -> dict:
     return {
@@ -125,6 +137,8 @@ async def update_server(server_id: uuid.UUID, body: ServerUpdate, db: AsyncSessi
         raise HTTPException(422, str(exc))
     for k, v in data.items():
         setattr(server, k, v)
+    if _AGENT_SYNC_FIELDS.intersection(data):
+        server.force_sync = True
     await db.commit()
     await db.refresh(server)
     return _server_payload(server)
