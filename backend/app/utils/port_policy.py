@@ -5,6 +5,7 @@ from app.models.user import UserServer
 
 SHADOWSOCKS_PORT_MIN = 20000
 SHADOWSOCKS_PORT_MAX = 29999
+CLOUDFLARE_VLESS_PORT = 443
 VLESS_PORT_MIN = 30000
 VLESS_PORT_MAX = 39999
 
@@ -14,7 +15,7 @@ def is_shadowsocks_port(port: int | None) -> bool:
 
 
 def is_vless_port(port: int | None) -> bool:
-    return port is not None and VLESS_PORT_MIN <= port <= VLESS_PORT_MAX
+    return port is not None and (port == CLOUDFLARE_VLESS_PORT or VLESS_PORT_MIN <= port <= VLESS_PORT_MAX)
 
 
 def validate_shadowsocks_range(start: int, end: int) -> None:
@@ -30,7 +31,10 @@ def validate_vless_port(port: int | None) -> None:
     if port is None:
         return
     if not is_vless_port(port):
-        raise ValueError(f"VLESS port must stay between {VLESS_PORT_MIN} and {VLESS_PORT_MAX}")
+        raise ValueError(
+            f"VLESS port must be {CLOUDFLARE_VLESS_PORT} for Cloudflare proxy "
+            f"or between {VLESS_PORT_MIN} and {VLESS_PORT_MAX} for direct mode"
+        )
 
 
 async def next_shadowsocks_port(

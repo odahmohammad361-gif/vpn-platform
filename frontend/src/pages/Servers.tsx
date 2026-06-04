@@ -7,6 +7,7 @@ const inputClass = "w-full px-4 py-2.5 rounded-xl bg-white/5 text-white border b
 const apiBase = "https://saymy-vpn.com";
 const ssPortMin = 20000;
 const ssPortMax = 29999;
+const cloudflareVlessPort = 443;
 const vlessPortMin = 30000;
 const vlessPortMax = 39999;
 const shortCode = (value?: string | null) => value?.split("-", 1)[0]?.slice(0, 8) ?? "";
@@ -96,7 +97,7 @@ function EditModal({ server, onClose }: { server: any; onClose: () => void }) {
               onChange={(e) => setForm({ ...form, xui_inbound_id: e.target.value })} />
             <input className={inputClass} placeholder="VLESS Host override (optional)" value={form.vless_host}
               onChange={(e) => setForm({ ...form, vless_host: e.target.value })} />
-            <input className={inputClass} placeholder="VLESS Port (30000-39999)" type="number" min={vlessPortMin} max={vlessPortMax} value={form.vless_port}
+            <input className={inputClass} placeholder="VLESS Port (443 or 30000-39999)" type="number" min={cloudflareVlessPort} max={vlessPortMax} value={form.vless_port}
               onChange={(e) => setForm({ ...form, vless_port: e.target.value })} />
             <input className={inputClass} placeholder="VLESS Public Key" value={form.vless_public_key}
               onChange={(e) => setForm({ ...form, vless_public_key: e.target.value })} />

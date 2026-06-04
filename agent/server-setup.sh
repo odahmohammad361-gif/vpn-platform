@@ -460,9 +460,9 @@ sync_vless() {
 
     vless_sni=$(echo "$config" | jq -r '[.[] | select(.vless_uuid and .vless_port and .vless_sni and (.vless_transport == "grpc"))][0].vless_sni // empty')
     public_port=$(echo "$config" | jq -r '[.[] | select(.vless_uuid and .vless_port and .vless_sni and (.vless_transport == "grpc"))][0].vless_port // empty')
-    if ! [[ "$public_port" =~ ^[0-9]+$ ]] || (( public_port < 30000 || public_port > 39999 )); then
+    if ! [[ "$public_port" =~ ^[0-9]+$ ]] || [[ "$public_port" != "443" && ( "$public_port" -lt 30000 || "$public_port" -gt 39999 ) ]]; then
         systemctl stop xray 2>/dev/null || true
-        echo "[vless] Invalid VLESS port ${public_port}; use 30000-39999"
+        echo "[vless] Invalid VLESS port ${public_port}; use 443 for Cloudflare or 30000-39999 for direct mode"
         return 1
     fi
 
