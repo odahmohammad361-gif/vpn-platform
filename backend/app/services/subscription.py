@@ -1,4 +1,5 @@
 import base64
+import json
 import yaml
 from app.utils.base64_utils import build_ss_uri, encode_subscription
 
@@ -53,13 +54,115 @@ _SURGE_RULES = [
 ]
 
 
+_SINGBOX_DIRECT_SUFFIXES = [
+    ".cn",
+    "baidu.com",
+    "qq.com",
+    "weixin.qq.com",
+    "wechat.com",
+    "taobao.com",
+    "tmall.com",
+    "jd.com",
+    "alipay.com",
+    "aliyun.com",
+    "alibaba.com",
+    "bilibili.com",
+    "iqiyi.com",
+    "youku.com",
+    "weibo.com",
+    "zhihu.com",
+    "douyin.com",
+    "tiktok.com",
+    "xiaomi.com",
+    "huawei.com",
+]
+
+
+def _clash_vless_proxy(node: dict) -> dict:
+    proxy = {
+        "name": node["name"],
+        "type": "vless",
+        "server": node["host"],
+        "port": node["port"],
+        "uuid": node["uuid"],
+        "tls": True,
+        "udp": True,
+        "servername": node["sni"],
+        "client-fingerprint": "chrome",
+        "packet-encoding": node.get("packet_encoding", "xudp"),
+    }
+    if node.get("transport") == "grpc":
+        proxy.update({
+            "network": "grpc",
+            "alpn": ["h2"],
+            "grpc-opts": {
+                "grpc-service-name": node.get("grpc_service_name", "grpc"),
+            },
+        })
+    else:
+        proxy.update({
+            "network": "tcp",
+            "flow": node.get("flow", "xtls-rprx-vision"),
+            "reality-opts": {
+                "public-key": node["public_key"],
+                "short-id": node["short_id"],
+            },
+        })
+    return proxy
+
+
+def _singbox_ss_outbound(slot: dict) -> dict:
+    return {
+        "type": "shadowsocks",
+        "tag": slot["name"],
+        "server": slot["host"],
+        "server_port": slot["port"],
+        "method": slot["method"],
+        "password": slot["password"],
+    }
+
+
+def _singbox_vless_outbound(node: dict) -> dict:
+    outbound = {
+        "type": "vless",
+        "tag": node["name"],
+        "server": node["host"],
+        "server_port": node["port"],
+        "uuid": node["uuid"],
+        "packet_encoding": node.get("packet_encoding", "xudp"),
+        "tls": {
+            "enabled": True,
+            "server_name": node["sni"],
+            "utls": {
+                "enabled": True,
+                "fingerprint": "chrome",
+            },
+        },
+    }
+    if node.get("transport") == "grpc":
+        outbound["transport"] = {
+            "type": "grpc",
+            "service_name": node.get("grpc_service_name", "grpc"),
+        }
+        outbound["tls"]["alpn"] = ["h2"]
+    else:
+        outbound["flow"] = node.get("flow", "xtls-rprx-vision")
+        outbound["network"] = "tcp"
+        outbound["tls"]["reality"] = {
+            "enabled": True,
+            "public_key": node["public_key"],
+            "short_id": node["short_id"],
+        }
+    return outbound
+
+
 def build_shadowrocket(slots: list[dict], vless_uris: list[str] | None = None) -> str:
     uris = [build_ss_uri(s["method"], s["password"], s["host"], s["port"], s["name"]) for s in slots]
     uris += (vless_uris or [])
     return encode_subscription(uris)
 
 
-def build_clash(slots: list[dict], vless_uris: list[str] | None = None) -> str:
+def build_clash(slots: list[dict], vless_nodes: list[dict] | None = None) -> str:
     proxies = [
         {
             "name": s["name"],
@@ -72,7 +175,8 @@ def build_clash(slots: list[dict], vless_uris: list[str] | None = None) -> str:
         }
         for s in slots
     ]
-    proxy_names = [s["name"] for s in slots]
+    proxies += [_clash_vless_proxy(v) for v in (vless_nodes or [])]
+    proxy_names = [p["name"] for p in proxies]
     dns_servers = list(dict.fromkeys(s["host"] for s in slots))
     config = {
         "dns": {
@@ -95,6 +199,73 @@ def build_clash(slots: list[dict], vless_uris: list[str] | None = None) -> str:
         "rules": _CLASH_RULES,
     }
     return yaml.dump(config, allow_unicode=True, sort_keys=False)
+
+
+def build_singbox(slots: list[dict], vless_nodes: list[dict] | None = None) -> str:
+    proxy_outbounds = [_singbox_ss_outbound(s) for s in slots]
+    proxy_outbounds += [_singbox_vless_outbound(v) for v in (vless_nodes or [])]
+    proxy_names = [p["tag"] for p in proxy_outbounds]
+    default_proxy = next((p["tag"] for p in proxy_outbounds if p["type"] == "vless"), proxy_names[0])
+
+    config = {
+        "log": {
+            "level": "warn",
+            "timestamp": True,
+        },
+        "dns": {
+            "servers": [
+                {"type": "udp", "tag": "local", "server": "223.5.5.5"},
+                {"type": "udp", "tag": "remote", "server": "1.1.1.1", "detour": "VPN"},
+            ],
+            "rules": [
+                {
+                    "domain_suffix": _SINGBOX_DIRECT_SUFFIXES,
+                    "action": "route",
+                    "server": "local",
+                }
+            ],
+            "final": "remote",
+            "strategy": "ipv4_only",
+        },
+        "inbounds": [
+            {
+                "type": "tun",
+                "tag": "tun-in",
+                "address": ["172.19.0.1/30"],
+                "auto_route": True,
+                "strict_route": False,
+            }
+        ],
+        "outbounds": [
+            {
+                "type": "selector",
+                "tag": "VPN",
+                "outbounds": proxy_names,
+                "default": default_proxy,
+            },
+            *proxy_outbounds,
+            {"type": "direct", "tag": "direct"},
+            {"type": "block", "tag": "block"},
+        ],
+        "route": {
+            "rules": [
+                {
+                    "ip_is_private": True,
+                    "action": "route",
+                    "outbound": "direct",
+                },
+                {
+                    "domain_suffix": _SINGBOX_DIRECT_SUFFIXES,
+                    "action": "route",
+                    "outbound": "direct",
+                },
+            ],
+            "auto_detect_interface": True,
+            "default_domain_resolver": "local",
+            "final": "VPN",
+        },
+    }
+    return json.dumps(config, ensure_ascii=False, indent=2)
 
 
 def build_v2rayng(slots: list[dict], vless_uris: list[str] | None = None) -> str:

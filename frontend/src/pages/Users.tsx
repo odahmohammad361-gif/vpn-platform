@@ -215,6 +215,7 @@ function SubModal({ user, onClose }: { user: any; onClose: () => void }) {
     { key: "shadowrocket", label: "Shadowrocket" },
     { key: "clash", label: "Clash" },
     { key: "v2rayng", label: "v2rayNG" },
+    { key: "singbox", label: "Sing-box" },
     { key: "surge", label: "Shadowrocket + AdGuard DNS", note: "Sets DNS to VPN server — routes through AdGuard Home" },
   ];
 
@@ -399,16 +400,8 @@ export default function Users() {
                 <td className="px-5 py-4">
                   <p className="text-white font-mono font-medium">{u.username}</p>
                   {u.email && <p className="text-gray-600 text-xs mt-0.5">{u.email}</p>}
-                  <span className={`inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-md text-xs font-medium border ${
-                    u.active_devices >= 5
-                      ? "bg-red-500/10 text-red-400 border-red-500/20"
-                      : u.active_devices >= 4
-                      ? "bg-orange-500/10 text-orange-400 border-orange-500/20"
-                      : u.active_devices > 0
-                      ? "bg-blue-500/10 text-blue-400 border-blue-500/20"
-                      : "bg-white/5 text-gray-600 border-white/10"
-                  }`}>
-                    {u.active_devices ?? 0}/5 devices
+                  <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-md text-xs font-medium border bg-blue-500/10 text-blue-400 border-blue-500/20">
+                    Unlimited devices
                   </span>
                 </td>
                 <td className="px-5 py-4">

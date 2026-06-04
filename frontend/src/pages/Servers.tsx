@@ -4,14 +4,22 @@ import { Plus, Trash2, Wifi, WifiOff, Activity, Copy, Shield, ShieldOff, Externa
 import api from "@/lib/api";
 
 const inputClass = "w-full px-4 py-2.5 rounded-xl bg-white/5 text-white border border-white/10 focus:outline-none focus:border-blue-500/60 transition placeholder-gray-600 text-sm";
+const apiBase = "https://saymy-vpn.com";
+const ssPortMin = 20000;
+const ssPortMax = 29999;
+const cloudflareVlessPort = 443;
+const vlessPortMin = 30000;
+const vlessPortMax = 39999;
+const shortCode = (value?: string | null) => value?.split("-", 1)[0]?.slice(0, 8) ?? "";
+const shortSecret = (value?: string | null) => value?.slice(0, 8) ?? "";
 
 function EditModal({ server, onClose }: { server: any; onClose: () => void }) {
   const qc = useQueryClient();
   const [form, setForm] = useState({
     name: server.name ?? "",
     host: server.host ?? "",
-    port_range_start: server.port_range_start ?? 20000,
-    port_range_end: server.port_range_end ?? 29999,
+    port_range_start: server.port_range_start ?? ssPortMin,
+    port_range_end: server.port_range_end ?? ssPortMax,
     method: server.method ?? "chacha20-ietf-poly1305",
     adguard_password: server.adguard_password ?? "",
     xui_url: server.xui_url ?? "",
@@ -59,9 +67,9 @@ function EditModal({ server, onClose }: { server: any; onClose: () => void }) {
               onChange={(e) => setForm({ ...form, name: e.target.value })} />
             <input className={inputClass} placeholder="Host (subdomain or IP)" value={form.host}
               onChange={(e) => setForm({ ...form, host: e.target.value })} />
-            <input className={inputClass} placeholder="Port range start" type="number" value={form.port_range_start}
+            <input className={inputClass} placeholder="SS range start (20000)" type="number" min={ssPortMin} max={ssPortMax} value={form.port_range_start}
               onChange={(e) => setForm({ ...form, port_range_start: Number(e.target.value) })} />
-            <input className={inputClass} placeholder="Port range end" type="number" value={form.port_range_end}
+            <input className={inputClass} placeholder="SS range end (29999)" type="number" min={ssPortMin} max={ssPortMax} value={form.port_range_end}
               onChange={(e) => setForm({ ...form, port_range_end: Number(e.target.value) })} />
             <input className={inputClass} placeholder="SS Method" value={form.method}
               onChange={(e) => setForm({ ...form, method: e.target.value })} />
@@ -75,9 +83,9 @@ function EditModal({ server, onClose }: { server: any; onClose: () => void }) {
             onChange={(e) => setForm({ ...form, adguard_password: e.target.value })} />
         </div>
 
-        {/* x-ui / VLESS */}
+        {/* VLESS */}
         <div>
-          <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2">VLESS+Reality (x-ui)</p>
+          <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2">VLESS</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <input className={inputClass} placeholder="x-ui URL (e.g. https://sg..:6689/path)" value={form.xui_url}
               onChange={(e) => setForm({ ...form, xui_url: e.target.value })} />
@@ -89,13 +97,13 @@ function EditModal({ server, onClose }: { server: any; onClose: () => void }) {
               onChange={(e) => setForm({ ...form, xui_inbound_id: e.target.value })} />
             <input className={inputClass} placeholder="VLESS Host override (optional)" value={form.vless_host}
               onChange={(e) => setForm({ ...form, vless_host: e.target.value })} />
-            <input className={inputClass} placeholder="VLESS Port (e.g. 55710)" type="number" value={form.vless_port}
+            <input className={inputClass} placeholder="VLESS Port (443 or 30000-39999)" type="number" min={cloudflareVlessPort} max={vlessPortMax} value={form.vless_port}
               onChange={(e) => setForm({ ...form, vless_port: e.target.value })} />
             <input className={inputClass} placeholder="VLESS Public Key" value={form.vless_public_key}
               onChange={(e) => setForm({ ...form, vless_public_key: e.target.value })} />
-            <input className={inputClass} placeholder="VLESS Short ID" value={form.vless_short_id}
+            <input className={inputClass} placeholder="gRPC Service / Reality Short ID" value={form.vless_short_id}
               onChange={(e) => setForm({ ...form, vless_short_id: e.target.value })} />
-            <input className={inputClass} placeholder="VLESS SNI (e.g. www.apple.com)" value={form.vless_sni}
+            <input className={inputClass} placeholder="VLESS SNI (e.g. sg3.saymy-vpn.com)" value={form.vless_sni}
               onChange={(e) => setForm({ ...form, vless_sni: e.target.value })} />
           </div>
         </div>
@@ -131,6 +139,10 @@ function CopyRow({ label, value }: { label: string; value: string | null | undef
 }
 
 function ProfileModal({ server, onClose }: { server: any; onClose: () => void }) {
+  const serverCode = server.server_code || shortCode(server.id);
+  const agentSecret = server.agent_secret_short || shortSecret(server.agent_secret);
+  const setupCommand = `sudo bash server-setup.sh ${serverCode} ${agentSecret} ${apiBase}`;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <div className="glass rounded-2xl p-6 w-full max-w-lg space-y-5">
@@ -145,9 +157,10 @@ function ProfileModal({ server, onClose }: { server: any; onClose: () => void })
         <div>
           <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2">Agent</p>
           <div className="bg-white/3 rounded-xl px-4 py-1">
-            <CopyRow label="Server ID" value={server.id} />
-            <CopyRow label="Agent Secret" value={server.agent_secret} />
-            <CopyRow label="API Base" value="https://saymy-vpn.com/agent" />
+            <CopyRow label="Server Code" value={serverCode} />
+            <CopyRow label="Agent Secret" value={agentSecret} />
+            <CopyRow label="API Base" value={apiBase} />
+            <CopyRow label="Setup Command" value={setupCommand} />
           </div>
         </div>
 
@@ -163,10 +176,12 @@ function ProfileModal({ server, onClose }: { server: any; onClose: () => void })
           </div>
         )}
 
-        {/* x-ui / VLESS */}
-        {server.xui_url && (
+        {/* VLESS */}
+        {(server.xui_url || server.vless_port) && (
           <div>
-            <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2">x-ui Panel (VLESS+Reality)</p>
+            <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2">
+              {server.vless_public_key ? "VLESS Reality" : "VLESS gRPC TLS"}
+            </p>
             <div className="bg-white/3 rounded-xl px-4 py-1">
               <CopyRow label="Panel URL" value={server.xui_url} />
               <CopyRow label="Username" value={server.xui_username} />
@@ -174,7 +189,7 @@ function ProfileModal({ server, onClose }: { server: any; onClose: () => void })
               <CopyRow label="Inbound ID" value={server.xui_inbound_id?.toString()} />
               <CopyRow label="VLESS Port" value={server.vless_port?.toString()} />
               <CopyRow label="Public Key" value={server.vless_public_key} />
-              <CopyRow label="Short ID" value={server.vless_short_id} />
+              <CopyRow label={server.vless_public_key ? "Short ID" : "gRPC Service"} value={server.vless_short_id || (!server.vless_public_key && server.vless_port ? "grpc" : null)} />
               <CopyRow label="SNI" value={server.vless_sni} />
               {server.vless_host && <CopyRow label="VLESS Host" value={server.vless_host} />}
             </div>
@@ -195,7 +210,7 @@ export default function Servers() {
   const [creating, setCreating] = useState(false);
   const [editingServer, setEditingServer] = useState<any>(null);
   const [profileServer, setProfileServer] = useState<any>(null);
-  const [form, setForm] = useState({ name: "", host: "", api_port: 8080, port_range_start: 20000, port_range_end: 29999 });
+  const [form, setForm] = useState({ name: "", host: "", api_port: 8080, port_range_start: ssPortMin, port_range_end: ssPortMax });
 
   const { data: servers = [] } = useQuery({
     queryKey: ["servers"],
@@ -250,9 +265,9 @@ export default function Servers() {
               onChange={(e) => setForm({ ...form, name: e.target.value })} />
             <input className={inputClass} placeholder="Host (e.g. hk.saymy-vpn.com)" value={form.host}
               onChange={(e) => setForm({ ...form, host: e.target.value })} />
-            <input className={inputClass} placeholder="Port range start" type="number" value={form.port_range_start}
+            <input className={inputClass} placeholder="SS range start (20000)" type="number" min={ssPortMin} max={ssPortMax} value={form.port_range_start}
               onChange={(e) => setForm({ ...form, port_range_start: Number(e.target.value) })} />
-            <input className={inputClass} placeholder="Port range end" type="number" value={form.port_range_end}
+            <input className={inputClass} placeholder="SS range end (29999)" type="number" min={ssPortMin} max={ssPortMax} value={form.port_range_end}
               onChange={(e) => setForm({ ...form, port_range_end: Number(e.target.value) })} />
           </div>
           <div className="flex gap-2">
@@ -277,6 +292,9 @@ export default function Servers() {
         )}
         {servers.map((s: any) => {
           const online = isOnline(s.last_seen_at);
+          const serverCode = s.server_code || shortCode(s.id);
+          const agentSecret = s.agent_secret_short || shortSecret(s.agent_secret);
+          const setupCommand = `sudo bash server-setup.sh ${serverCode} ${agentSecret} ${apiBase}`;
           return (
             <div key={s.id} className="glass rounded-2xl p-5">
               <div className="flex items-center justify-between">
@@ -298,12 +316,12 @@ export default function Servers() {
                       <span className="px-1.5 py-0.5 rounded text-xs font-semibold bg-blue-500/15 text-blue-400">
                         Shadowsocks
                       </span>
-                      <span>Ports {s.port_range_start}–{s.port_range_end}</span>
+                      <span>SS {s.port_range_start}–{s.port_range_end}</span>
                       {s.vless_port && (
                         <>
                           <span>·</span>
                           <span className="px-1.5 py-0.5 rounded text-xs font-semibold bg-purple-500/15 text-purple-400">
-                            VLESS+Reality
+                            {s.vless_public_key ? "VLESS+Reality" : "VLESS gRPC"}
                           </span>
                           <span>:{s.vless_port}</span>
                         </>
@@ -356,10 +374,10 @@ export default function Servers() {
               {/* IDs for agent install */}
               <div className="mt-4 pt-4 border-t border-white/5 grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <p className="text-gray-600 text-xs mb-1">Server ID</p>
+                  <p className="text-gray-600 text-xs mb-1">Server Code</p>
                   <div className="flex items-center gap-2">
-                    <p className="text-gray-500 font-mono text-xs break-all">{s.id}</p>
-                    <button onClick={() => navigator.clipboard.writeText(s.id)}
+                    <p className="text-gray-500 font-mono text-xs break-all">{serverCode}</p>
+                    <button onClick={() => navigator.clipboard.writeText(serverCode)}
                       className="shrink-0 p-1 rounded hover:bg-white/10 text-gray-600 hover:text-gray-300 transition">
                       <Copy className="w-3 h-3" />
                     </button>
@@ -368,8 +386,18 @@ export default function Servers() {
                 <div>
                   <p className="text-gray-600 text-xs mb-1">Agent Secret</p>
                   <div className="flex items-center gap-2">
-                    <p className="text-gray-500 font-mono text-xs break-all">{s.agent_secret}</p>
-                    <button onClick={() => navigator.clipboard.writeText(s.agent_secret)}
+                    <p className="text-gray-500 font-mono text-xs break-all">{agentSecret}</p>
+                    <button onClick={() => navigator.clipboard.writeText(agentSecret)}
+                      className="shrink-0 p-1 rounded hover:bg-white/10 text-gray-600 hover:text-gray-300 transition">
+                      <Copy className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+                <div className="sm:col-span-2">
+                  <p className="text-gray-600 text-xs mb-1">Setup Command</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-gray-500 font-mono text-xs break-all">{setupCommand}</p>
+                    <button onClick={() => navigator.clipboard.writeText(setupCommand)}
                       className="shrink-0 p-1 rounded hover:bg-white/10 text-gray-600 hover:text-gray-300 transition">
                       <Copy className="w-3 h-3" />
                     </button>

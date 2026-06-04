@@ -4,14 +4,14 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import PlainTextResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from sqlalchemy.dialects.postgresql import insert as pg_insert
 from fastapi import Depends
 from app.database import get_db
 from app.models.user import User, UserServer
 from app.models.server import Server
-from app.models.device import Device
-from app.services.subscription import build_shadowrocket, build_clash, build_v2rayng, build_surge_conf
-from app.utils.base64_utils import build_vless_uri
+from app.services.subscription import build_shadowrocket, build_clash, build_v2rayng, build_singbox, build_surge_conf
+from app.utils.base64_utils import build_vless_uri, build_vless_grpc_uri
+from app.utils.port_policy import is_vless_port
+from app.utils.short_codes import resolve_user_token
 from app.config import settings
 
 router = APIRouter(prefix="/sub", tags=["subscription"])
@@ -49,12 +49,21 @@ def _userinfo_header(user: User) -> str:
     return "; ".join(parts)
 
 
-def _respond(slots: list[dict], format: str, user: User | None = None, vless_uris: list[str] | None = None):
+def _respond(
+    slots: list[dict],
+    format: str,
+    user: User | None = None,
+    vless_uris: list[str] | None = None,
+    vless_nodes: list[dict] | None = None,
+):
     vless_uris = vless_uris or []
+    vless_nodes = vless_nodes or []
     if format == "clash":
-        resp = Response(content=build_clash(slots, vless_uris), media_type="text/yaml")
+        resp = Response(content=build_clash(slots, vless_nodes), media_type="text/yaml")
     elif format == "v2rayng":
         resp = PlainTextResponse(build_v2rayng(slots, vless_uris))
+    elif format == "singbox":
+        resp = Response(content=build_singbox(slots, vless_nodes), media_type="application/json")
     elif format == "surge":
         resp = PlainTextResponse(build_surge_conf(slots), media_type="text/plain")
     else:
@@ -66,31 +75,75 @@ def _respond(slots: list[dict], format: str, user: User | None = None, vless_uri
     return resp
 
 
+def _vless_node(us: UserServer, server: Server) -> tuple[dict, str] | None:
+    if not us.vless_uuid or not is_vless_port(server.vless_port) or not server.vless_sni:
+        return None
+
+    host = server.vless_host or server.host
+    name = f"{server.name}-VLESS"
+
+    if server.vless_public_key and server.vless_short_id:
+        node = {
+            "name": name,
+            "host": host,
+            "port": server.vless_port,
+            "uuid": us.vless_uuid,
+            "security": "reality",
+            "transport": "tcp",
+            "flow": "xtls-rprx-vision",
+            "public_key": server.vless_public_key,
+            "short_id": server.vless_short_id,
+            "sni": server.vless_sni,
+            "packet_encoding": "xudp",
+        }
+        uri = build_vless_uri(
+            client_uuid=us.vless_uuid,
+            host=host,
+            port=server.vless_port,
+            public_key=server.vless_public_key,
+            short_id=server.vless_short_id,
+            sni=server.vless_sni,
+            name=name,
+        )
+        return node, uri
+
+    service_name = server.vless_short_id or "grpc"
+    node = {
+        "name": name,
+        "host": host,
+        "port": server.vless_port,
+        "uuid": us.vless_uuid,
+        "security": "tls",
+        "transport": "grpc",
+        "grpc_service_name": service_name,
+        "sni": server.vless_sni,
+        "alpn": "h2",
+        "packet_encoding": "xudp",
+    }
+    uri = build_vless_grpc_uri(
+        client_uuid=us.vless_uuid,
+        host=host,
+        port=server.vless_port,
+        sni=server.vless_sni,
+        service_name=service_name,
+        name=name,
+    )
+    return node, uri
+
+
 @router.get("/{token}")
 async def get_subscription(
-    token: uuid.UUID,
+    token: str,
     request: Request,
     format: str = "shadowrocket",
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(select(User).where(User.subscription_token == token))
-    user = result.scalar_one_or_none()
+    user = await resolve_user_token(db, token)
 
     if not user:
         raise HTTPException(403, "Subscription not available")
 
-    # Record device IP (upsert — update last_seen_at if already known)
-    client_ip = request.headers.get("X-Forwarded-For", request.client.host).split(",")[0].strip()
-    now = datetime.now(timezone.utc)
-    await db.execute(
-        pg_insert(Device)
-        .values(user_id=user.id, ip_address=client_ip, first_seen_at=now, last_seen_at=now)
-        .on_conflict_do_update(
-            index_elements=["user_id", "ip_address"],
-            set_={"last_seen_at": now},
-        )
-    )
-    await db.commit()
+    # Device tracking is intentionally disabled; subscriptions can be used on unlimited devices.
 
     # Real-time expiry check (don't wait for scheduler)
     if user.expires_at and user.expires_at < datetime.now(timezone.utc):
@@ -115,6 +168,8 @@ async def get_subscription(
 
     slots = []
     vless_uris = []
+    vless_nodes = []
+    created_vless_uuid = False
     for us, server in rows:
         slots.append({
             "name": server.name,
@@ -123,19 +178,19 @@ async def get_subscription(
             "password": us.password,
             "method": server.method,
         })
-        if (us.vless_uuid and server.vless_port and server.vless_public_key
-                and server.vless_short_id and server.vless_sni):
-            vless_uris.append(build_vless_uri(
-                client_uuid=us.vless_uuid,
-                host=server.vless_host or server.host,
-                port=server.vless_port,
-                public_key=server.vless_public_key,
-                short_id=server.vless_short_id,
-                sni=server.vless_sni,
-                name=f"{server.name}-VLESS",
-            ))
+        if not us.vless_uuid and is_vless_port(server.vless_port) and server.vless_sni:
+            us.vless_uuid = str(uuid.uuid4())
+            created_vless_uuid = True
+        node = _vless_node(us, server)
+        if node:
+            vless_node, vless_uri = node
+            vless_nodes.append(vless_node)
+            vless_uris.append(vless_uri)
+
+    if created_vless_uuid:
+        await db.commit()
 
     if not slots:
         raise HTTPException(404, "No active servers assigned")
 
-    return _respond(slots, format, user, vless_uris)
+    return _respond(slots, format, user, vless_uris, vless_nodes)
